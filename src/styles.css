@@ -1,0 +1,676 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+  color: #effffd;
+  background: #031012;
+  font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+  font-synthesis: none;
+  --ink: #effffd;
+  --muted: rgba(225, 247, 243, 0.62);
+  --panel: rgba(4, 21, 24, 0.68);
+  --line: rgba(183, 245, 234, 0.16);
+  --aqua: #6fffe5;
+  --aqua-soft: rgba(111, 255, 229, 0.16);
+  --ember: #ff9d65;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app { width: 100%; min-height: 100%; margin: 0; }
+
+body { overflow: hidden; }
+
+button, progress { font: inherit; }
+
+.experience-shell {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  background: #000;
+}
+
+.stage {
+  position: relative;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  container: stage / inline-size;
+  overflow: hidden;
+  isolation: isolate;
+  background: #f8f9fb;
+}
+
+.figma-stage-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.stage-caption {
+  position: absolute;
+  z-index: 1;
+  top: clamp(18px, 4.7vh, 60px);
+  color: #0b0b0c;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.stage-caption-left {
+  left: clamp(16px, 2.8vw, 60px);
+  display: flex;
+  align-items: baseline;
+  gap: 0.35em;
+  font-size: clamp(17px, 1.85vw, 40px);
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.stage-caption-left strong { font-weight: 800; }
+.stage-caption-left span { font-weight: 500; }
+
+.stage-caption-right {
+  right: clamp(16px, 2.8vw, 60px);
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 13px;
+  font-size: clamp(12px, 0.93vw, 20px);
+  font-weight: 800;
+  line-height: 1.12;
+  text-align: right;
+}
+
+.stage-caption-right i { display: block; width: 16px; height: 4px; background: currentColor; }
+
+.phone-frame {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  margin-left: -346.5px;
+  margin-top: -640px;
+  width: 693px;
+  height: 1280px;
+  flex: none;
+  transform: scale(var(--phone-scale, 1));
+  transform-origin: center;
+}
+
+.figma-phone-frame {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  clip-path: inset(3.35% 8.1% 3.35% 8.1% round 90px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.figma-phone-camera {
+  position: absolute;
+  z-index: 4;
+  left: 289.7px;
+  top: 82.8px;
+  width: 149px;
+  height: 42px;
+  pointer-events: none;
+}
+
+.phone-screen {
+  position: absolute;
+  z-index: 3;
+  left: 84.1px;
+  top: 62.7px;
+  width: 524.635px;
+  height: 1144.282px;
+  overflow: hidden;
+  container: phone / inline-size;
+  isolation: isolate;
+  border-radius: 64px;
+  background: #061417;
+}
+
+.camera-feed, .camera-wash, .rain-effect-video, .storm-overlay, .effects-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.camera-feed {
+  z-index: 0;
+  object-fit: cover;
+  transform: scaleX(-1);
+  filter: saturate(0.82) contrast(1.05) brightness(0.82);
+  transition: filter 320ms ease;
+}
+
+.camera-wash {
+  z-index: 1;
+  background: linear-gradient(90deg, rgba(1, 11, 13, 0.74) 0%, rgba(1, 11, 13, 0.12) 55%, rgba(1, 11, 13, 0.28) 100%);
+  pointer-events: none;
+  transition: background 320ms ease;
+}
+
+.rain-effect-video {
+  z-index: 2;
+  display: block;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  filter: brightness(1.08) contrast(1.08) saturate(1.08);
+  transition: opacity 260ms ease;
+  will-change: opacity;
+}
+
+.rain-effect-video.is-active { opacity: 0.86; }
+
+.storm-overlay {
+  z-index: 3;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(174, 255, 250, 0.2), transparent 46%),
+    linear-gradient(180deg, rgba(40, 176, 190, 0.12), rgba(0, 42, 58, 0.28));
+  filter: brightness(1.35) contrast(1.18);
+  transition: opacity 120ms ease-out;
+}
+
+.storm-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(210, 255, 252, 0.19), transparent 36%),
+    linear-gradient(100deg, rgba(0, 48, 64, 0.22), transparent 42%, rgba(0, 88, 98, 0.16));
+  animation: storm-breathe 1.3s ease-in-out infinite alternate;
+}
+
+/* The rain video supplies the complete foreground artwork. Keep the live
+   camera at normal exposure and remove the legacy dark atmospheric wash. */
+body[data-expression='smile'] .storm-overlay { opacity: 0; }
+body[data-expression='laugh'] .storm-overlay { opacity: 0.42; }
+
+.effects-layer {
+  z-index: 4;
+  pointer-events: none;
+  /* Each renderer owns its own transparent glow. Normal composition preserves
+     the source palette instead of screening dim feedback into a white veil. */
+  mix-blend-mode: normal;
+}
+
+.pixi-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  mix-blend-mode: normal;
+  filter: brightness(1.45) saturate(1.35) drop-shadow(0 0 6px rgba(111, 255, 229, 0.62));
+}
+
+.three-fireworks-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  pointer-events: none;
+  mix-blend-mode: normal;
+}
+
+.fireworks-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  pointer-events: none;
+  mix-blend-mode: normal;
+}
+
+.td-burst-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  pointer-events: none;
+  mix-blend-mode: normal;
+}
+
+.impact-flash {
+  --burst-x: 50%;
+  --burst-y: 42%;
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at var(--burst-x) var(--burst-y), rgba(255, 248, 218, 0.24) 0 0.8%, rgba(255, 191, 91, 0.16) 4.5%, rgba(114, 221, 255, 0.07) 12%, transparent 28%),
+    radial-gradient(circle at 72% 28%, rgba(255, 155, 76, 0.07), transparent 26%),
+    radial-gradient(circle at 22% 40%, rgba(114, 221, 255, 0.05), transparent 28%);
+}
+
+.impact-flash span {
+  position: absolute;
+  left: var(--burst-x);
+  top: var(--burst-y);
+  width: 7rem;
+  height: 7rem;
+  border: 2px solid rgba(255, 238, 164, 0.72);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.08);
+  box-shadow: 0 0 1.6rem rgba(255, 223, 112, 0.54), inset 0 0 1rem rgba(111, 255, 229, 0.4);
+  opacity: 0;
+}
+
+.impact-flash span:nth-child(2) { border-color: rgba(111, 255, 229, 0.8); }
+.impact-flash span:nth-child(3) { border-color: rgba(255, 117, 72, 0.68); }
+.impact-flash.is-active { animation: impact-flash 150ms ease-out both; }
+.impact-flash.is-active span { animation: impact-ring 220ms cubic-bezier(0.12, 0.72, 0.2, 1) both; }
+.impact-flash.is-active span:nth-child(2) { animation-delay: 20ms; }
+.impact-flash.is-active span:nth-child(3) { animation-delay: 40ms; }
+
+body[data-expression='smile'] .camera-feed { filter: saturate(0.96) contrast(1.02) brightness(1); }
+body[data-expression='smile'] .camera-wash { background: transparent; }
+/* Keep the live camera at its normal exposure while the rocket is rising.
+   The imported TD artwork supplies its own contrast; a dark Laugh wash made
+   the entire portrait dim before the burst arrived. */
+body[data-expression='laugh'] .camera-feed { filter: saturate(0.9) contrast(1.02) brightness(1); }
+body[data-expression='laugh'] .camera-wash { background: transparent; }
+
+.head-collider {
+  --head-x: 0px;
+  --head-y: 0px;
+  --head-w: 0px;
+  --head-h: 0px;
+  position: absolute;
+  z-index: 6;
+  left: 0;
+  top: 0;
+  width: var(--head-w);
+  height: var(--head-h);
+  transform: translate3d(var(--head-x), var(--head-y), 0);
+  border: 1px solid rgba(111, 255, 229, 0.18);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms ease;
+}
+
+.head-collider.has-head.debug-visible {
+  opacity: 1;
+  border: 2px dashed rgba(111, 255, 229, 0.82);
+  box-shadow: 0 0 1.8rem rgba(111, 255, 229, 0.34), inset 0 0 1.2rem rgba(111, 255, 229, 0.08);
+}
+.head-collider.has-head.debug-visible.has-polygon {
+  border-color: transparent;
+  box-shadow: none;
+}
+.head-collider.has-head.debug-visible::after {
+  content: 'HEAD COLLIDER';
+  position: absolute;
+  left: 50%;
+  top: -1.45rem;
+  transform: translateX(-50%);
+  color: var(--aqua);
+  font: 600 0.6rem/1 'DM Mono', monospace;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+.head-collider span {
+  position: absolute;
+  left: 50%;
+  top: -0.25rem;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  background: var(--aqua);
+  box-shadow: 0 0 1rem var(--aqua);
+}
+
+.head-collider-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.head-collider-svg polygon {
+  fill: rgba(111, 255, 229, 0.05);
+  stroke: rgba(111, 255, 229, 0.9);
+  stroke-width: 1.4;
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.head-collider-svg line {
+  stroke: #ffd66f;
+  stroke-width: 2;
+  marker-end: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.head-collider:not(.has-polygon) .head-collider-svg polygon { display: none; }
+.head-collider:not(.has-velocity) .head-collider-svg line { display: none; }
+
+.topbar {
+  position: absolute;
+  z-index: 8;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem clamp(1rem, 3cqw, 2.6rem) 1rem;
+}
+
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.82rem;
+  letter-spacing: 0.16em;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 22px;
+  height: 22px;
+}
+
+.brand-mark i { width: 5px; border-radius: 99px; background: var(--aqua); transform: rotate(18deg); }
+.brand-mark i:nth-child(1) { height: 10px; }
+.brand-mark i:nth-child(2) { height: 17px; }
+.brand-mark i:nth-child(3) { height: 7px; }
+
+.signal-chip, .face-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.78rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(3, 16, 18, 0.58);
+  backdrop-filter: blur(18px);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.signal-dot { width: 7px; height: 7px; border-radius: 50%; background: #8b9796; box-shadow: 0 0 0 4px rgba(139, 151, 150, 0.1); }
+.signal-chip[data-status='ready'] .signal-dot { background: var(--aqua); box-shadow: 0 0 0 4px rgba(111, 255, 229, 0.12), 0 0 14px var(--aqua); }
+.signal-chip[data-status='requesting'] .signal-dot { background: #ffd66f; animation: blink 0.8s ease-in-out infinite alternate; }
+.signal-chip[data-status='error'] .signal-dot { background: #ff6f76; }
+.face-badge[data-detected='true'] { color: var(--aqua); border-color: rgba(111, 255, 229, 0.28); }
+
+.debug-panel {
+  position: absolute;
+  z-index: 7;
+  top: 50%;
+  left: clamp(1rem, 3cqw, 2.6rem);
+  width: min(22rem, calc(100% - 2rem));
+  transform: translateY(-46%);
+  padding: 1.35rem;
+  border: 1px solid var(--line);
+  border-radius: 1.35rem;
+  background: var(--panel);
+  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(24px) saturate(1.25);
+}
+
+.panel-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.eyebrow { font-family: 'DM Mono', monospace; color: var(--aqua); font-size: 0.72rem; letter-spacing: 0.14em; }
+h1 { margin: 0.3rem 0 0; font-size: 1.35rem; letter-spacing: -0.03em; }
+.face-badge { padding: 0.4rem 0.6rem; font-family: 'DM Mono', monospace; font-size: 0.68rem; }
+
+.state-readout {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 1.35rem 0 1.5rem;
+  padding: 1rem 0;
+  border-block: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.83rem;
+}
+
+.state-readout strong { color: var(--ink); font-family: 'DM Mono', monospace; font-size: 1rem; letter-spacing: 0.12em; }
+.metric-list { display: grid; gap: 1rem; }
+.metric > div { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.78rem; }
+.metric output { font-family: 'DM Mono', monospace; color: var(--ink); }
+
+progress {
+  display: block;
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  margin-top: 0.5rem;
+  border: 0;
+  border-radius: 99px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+progress::-webkit-progress-bar { background: rgba(255, 255, 255, 0.08); }
+progress::-webkit-progress-value { background: linear-gradient(90deg, #2ccbb1, var(--aqua)); border-radius: inherit; }
+progress::-moz-progress-bar { background: linear-gradient(90deg, #2ccbb1, var(--aqua)); }
+
+.performance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin: 1.4rem 0 0; }
+.performance-grid div { padding: 0.8rem; border: 1px solid var(--line); border-radius: 0.75rem; background: rgba(0, 0, 0, 0.12); }
+.performance-grid dt { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.64rem; letter-spacing: 0.1em; }
+.performance-grid dd { margin: 0.25rem 0 0; font-family: 'DM Mono', monospace; font-size: 0.84rem; }
+
+.collision-readout {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.7rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.collision-readout strong { color: var(--ink); font-family: 'DM Mono', monospace; font-size: 0.68rem; font-weight: 500; }
+
+.runtime-readout {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.55rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.runtime-readout strong { color: var(--ink); font-family: 'DM Mono', monospace; font-size: 0.68rem; font-weight: 500; }
+.runtime-readout strong#collider-status { color: #ff8fa8; }
+.runtime-readout strong#collider-status:where(:not(:empty)) { text-shadow: 0 0 0.7rem currentColor; }
+.interaction-debug-readout { display: none; }
+.debug-panel.show-interaction-debug .interaction-debug-readout { display: flex; }
+
+.collider-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.95rem;
+  color: var(--ink);
+  font-size: 0.78rem;
+  cursor: pointer;
+  user-select: none;
+}
+.collider-toggle input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--aqua);
+}
+
+body[data-expression='smile'] .state-readout strong { color: var(--aqua); }
+body[data-expression='laugh'] .state-readout strong { color: #ffd66f; text-shadow: 0 0 1rem rgba(255, 214, 111, 0.4); }
+body[data-expression='laugh'] .prompt-icon { color: #ffd66f; background: rgba(255, 214, 111, 0.12); }
+
+.prompt-card {
+  position: absolute;
+  z-index: 7;
+  left: 50%;
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  transform: translateX(-50%);
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: rgba(3, 16, 18, 0.7);
+  backdrop-filter: blur(18px);
+  white-space: nowrap;
+}
+
+.prompt-icon { display: grid; place-items: center; width: 2.3rem; height: 2.3rem; border-radius: 0.7rem; background: var(--aqua-soft); color: var(--aqua); font-size: 1.4rem; }
+.prompt-card strong, .prompt-card span { display: block; }
+.prompt-card strong { font-size: 0.88rem; }
+.prompt-card span { margin-top: 0.15rem; color: var(--muted); font-size: 0.72rem; }
+
+.permission-screen {
+  position: absolute;
+  z-index: 10;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.8fr);
+  align-items: center;
+  gap: clamp(2rem, 6cqw, 8rem);
+  padding: clamp(5.5rem, 10cqw, 8rem) clamp(1.5rem, 8cqw, 8rem) clamp(2rem, 5cqw, 5rem);
+  background:
+    radial-gradient(circle at 76% 49%, rgba(26, 212, 180, 0.22), transparent 22rem),
+    linear-gradient(120deg, rgba(3, 16, 18, 0.98) 10%, rgba(4, 22, 25, 0.93));
+  transition: opacity 480ms ease, visibility 480ms ease;
+}
+
+.permission-screen.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.permission-copy { max-width: 39rem; }
+.permission-copy h2 { margin: 0.8rem 0 1.15rem; font-size: clamp(2.8rem, 6cqw, 6rem); line-height: 1.05; letter-spacing: -0.065em; }
+.permission-copy h2 em { color: var(--aqua); font-style: normal; }
+.permission-copy > p { max-width: 34rem; color: var(--muted); font-size: clamp(1rem, 1.5cqw, 1.15rem); line-height: 1.75; }
+
+#start-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(20rem, 100%);
+  margin-top: 2rem;
+  padding: 1rem 1.1rem 1rem 1.25rem;
+  border: 0;
+  border-radius: 0.85rem;
+  color: #021311;
+  background: var(--aqua);
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 1rem 3rem rgba(44, 203, 177, 0.2);
+  transition: transform 160ms ease, filter 160ms ease;
+}
+
+#start-button:hover { transform: translateY(-2px); filter: brightness(1.04); }
+#start-button:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+#start-button:disabled { opacity: 0.65; cursor: wait; }
+.permission-copy .support-note { margin-top: 0.8rem; font-family: 'DM Mono', monospace; font-size: 0.7rem; }
+
+.orbital-visual { position: relative; width: min(35cqw, 31rem); aspect-ratio: 1; justify-self: center; }
+.orbit { position: absolute; inset: 0; border: 1px solid rgba(111, 255, 229, 0.18); border-radius: 50%; animation: spin 16s linear infinite; }
+.orbit::before, .orbit::after { content: ''; position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--aqua); box-shadow: 0 0 22px var(--aqua); }
+.orbit::before { top: 18%; left: 10%; }
+.orbit::after { right: 2%; bottom: 35%; }
+.orbit-b { inset: 14%; animation-direction: reverse; animation-duration: 11s; border-style: dashed; }
+.orbit-b::before { top: auto; bottom: 10%; left: 18%; background: var(--ember); box-shadow: 0 0 22px var(--ember); }
+.face-reticle { position: absolute; inset: 24%; border: 1px solid rgba(255, 255, 255, 0.26); border-radius: 44% 44% 48% 48%; box-shadow: inset 0 0 4rem rgba(111, 255, 229, 0.09); }
+.face-reticle span { position: absolute; width: 24px; height: 24px; border-color: var(--aqua); }
+.face-reticle span:nth-child(1) { left: -2px; top: -2px; border-left: 2px solid; border-top: 2px solid; border-radius: 8px 0 0; }
+.face-reticle span:nth-child(2) { right: -2px; top: -2px; border-right: 2px solid; border-top: 2px solid; border-radius: 0 8px 0 0; }
+.face-reticle span:nth-child(3) { right: -2px; bottom: -2px; border-right: 2px solid; border-bottom: 2px solid; border-radius: 0 0 8px; }
+.face-reticle span:nth-child(4) { left: -2px; bottom: -2px; border-left: 2px solid; border-bottom: 2px solid; border-radius: 0 0 0 8px; }
+.weather-glyph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--aqua); font-size: clamp(4rem, 9cqw, 8rem); text-shadow: 0 0 5rem rgba(111, 255, 229, 0.55); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes blink { to { opacity: 0.35; } }
+@keyframes impact-flash {
+  0% { opacity: 0; filter: brightness(1); }
+  10% { opacity: 1; filter: brightness(1.7); }
+  42% { opacity: 0.72; }
+  100% { opacity: 0; filter: brightness(1); }
+}
+@keyframes impact-ring {
+  0% { opacity: 0.95; transform: translate(-50%, -50%) scale(0.08); }
+  70% { opacity: 0.34; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(3.6); }
+}
+@keyframes storm-breathe {
+  from { opacity: 0.52; filter: brightness(0.9); }
+  to { opacity: 1; filter: brightness(1.28); }
+}
+
+/* The phone has one fixed logical viewport; these rules never depend on the browser width. */
+@container phone (max-width: 760px) {
+  .permission-screen { grid-template-columns: 1fr; padding-top: 7rem; }
+  .orbital-visual { position: absolute; right: -7rem; bottom: -8rem; width: 22rem; opacity: 0.42; }
+  /* Keep the phone preview readable without placing a large opaque card over
+     the face. The HUD remains available, but uses the compact mobile rhythm. */
+  .debug-panel {
+    top: auto;
+    bottom: 4.9rem;
+    left: 0.65rem;
+    width: min(10.5rem, calc(100% - 1.3rem));
+    transform: none;
+    padding: 0.58rem;
+    border-radius: 0.8rem;
+    background: rgba(4, 21, 24, 0.48);
+    box-shadow: 0 0.7rem 1.8rem rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(12px) saturate(1.15);
+  }
+  .panel-heading { gap: 0.35rem; }
+  .eyebrow { font-size: 0.52rem; letter-spacing: 0.1em; }
+  h1 { margin-top: 0.14rem; font-size: 0.82rem; }
+  .face-badge { padding: 0.2rem 0.3rem; font-size: 0.5rem; }
+  /* A live-stream overlay should not compete with the camera. Keep the
+     detailed meters available on wider layouts, while the phone HUD shows
+     only the state and interaction counters at a glance. */
+  .metric-list, .performance-grid, .collision-rate-readout { display: none; }
+  .state-readout { margin: 0.48rem 0 0.52rem; padding: 0.4rem 0; font-size: 0.58rem; }
+  .state-readout strong { font-size: 0.68rem; }
+  .metric-list { gap: 0.34rem; }
+  .metric > div { font-size: 0.56rem; }
+  progress { height: 3px; margin-top: 0.22rem; }
+  .performance-grid { gap: 0.3rem; margin-top: 0.55rem; }
+  .performance-grid div { padding: 0.4rem; }
+  .performance-grid dt { font-size: 0.47rem; letter-spacing: 0.06em; }
+  .performance-grid dd { margin-top: 0.1rem; font-size: 0.6rem; }
+  .collision-readout, .runtime-readout { margin-top: 0.28rem; font-size: 0.54rem; }
+  .collision-readout strong, .runtime-readout strong { font-size: 0.52rem; }
+  .collider-toggle { gap: 0.25rem; margin-top: 0.38rem; font-size: 0.52rem; white-space: nowrap; }
+  .collider-toggle input { width: 0.7rem; height: 0.7rem; }
+  .prompt-card { bottom: 1rem; }
+  .camera-wash { background: linear-gradient(180deg, rgba(1, 11, 13, 0.48), transparent 42%, rgba(1, 11, 13, 0.32)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+}

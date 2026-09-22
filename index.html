@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#061417" />
+    <meta name="description" content="微笑唤雨，大笑绽放烟花的实时浏览器 AR 互动体验。" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Smile Storm AR</title>
+  </head>
+  <body>
+    <main id="app" class="experience-shell">
+      <section class="stage" aria-label="AR 互动画面">
+        <img class="figma-stage-background" src="/figma-stage-backdrop.png" alt="" aria-hidden="true" />
+        <div class="stage-caption stage-caption-left" aria-hidden="true"><strong>TikTok</strong><span>·</span><span>Gifts and Effects</span></div>
+        <div class="stage-caption stage-caption-right" aria-hidden="true"><span>AI Product<br />DESIGN</span><i></i></div>
+        <div id="phone-frame" class="phone-frame">
+          <img class="figma-phone-frame" src="/figma-phone-frame.png" alt="" aria-hidden="true" />
+          <div id="phone-screen" class="phone-screen">
+          <video id="camera" class="camera-feed" autoplay muted playsinline></video>
+          <div class="camera-wash" aria-hidden="true"></div>
+          <video
+            id="rain-effect-video"
+            class="rain-effect-video"
+            src="/effects/rain-light.mp4"
+            autoplay
+            loop
+            muted
+            playsinline
+            preload="auto"
+            aria-hidden="true"
+          ></video>
+          <div class="storm-overlay" aria-hidden="true"></div>
+          <div id="effects-layer" class="effects-layer" aria-hidden="true"></div>
+          <div id="impact-flash" class="impact-flash" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+          <div id="head-collider" class="head-collider" aria-hidden="true">
+            <svg class="head-collider-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polygon id="head-collider-polygon" points="" />
+              <line id="head-velocity-vector" x1="50" y1="50" x2="50" y2="50" />
+            </svg>
+            <span></span>
+          </div>
+
+          <header class="topbar">
+          <div class="brand-lockup">
+            <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span>SMILE STORM</span>
+          </div>
+          <div class="signal-chip" id="signal-chip">
+            <span class="signal-dot" aria-hidden="true"></span>
+            <span id="signal-label">等待摄像头</span>
+          </div>
+          </header>
+
+          <aside class="debug-panel" aria-label="实时表情数据">
+          <div class="panel-heading">
+            <div>
+              <span class="eyebrow">LIVE SENSORS</span>
+              <h1>表情控制台</h1>
+            </div>
+            <span class="face-badge" id="face-badge">未检测</span>
+          </div>
+
+          <div class="state-readout">
+            <span>当前状态</span>
+            <strong id="state-label">NEUTRAL</strong>
+          </div>
+
+          <div class="metric-list">
+            <div class="metric" data-metric="smile">
+              <div><span>微笑幅度</span><output id="smile-value">0.00</output></div>
+              <progress id="smile-meter" aria-label="微笑幅度" max="1" value="0"></progress>
+            </div>
+            <div class="metric" data-metric="jaw">
+              <div><span>张嘴幅度</span><output id="jaw-value">0.00</output></div>
+              <progress id="jaw-meter" aria-label="张嘴幅度" max="1" value="0"></progress>
+            </div>
+            <div class="metric" data-metric="cheek">
+              <div><span>脸颊收紧</span><output id="cheek-value">0.00</output></div>
+              <progress id="cheek-meter" max="1" value="0"></progress>
+            </div>
+          </div>
+
+          <dl class="performance-grid">
+            <div><dt>INFERENCE</dt><dd><span id="inference-fps">0</span> FPS</dd></div>
+            <div><dt>RENDER</dt><dd><span id="render-fps">0</span> FPS</dd></div>
+          </dl>
+          <div class="collision-readout">
+            <span>已反弹粒子</span>
+            <strong><span id="collision-count">0</span> 粒</strong>
+          </div>
+          <div class="collision-readout collision-rate-readout">
+            <span>碰撞频率</span>
+            <strong><span id="collision-rate">0.0</span> / sec</strong>
+          </div>
+          <div class="runtime-readout">
+            <span>烟花粒子</span>
+            <strong id="firework-count">0</strong>
+          </div>
+          <div class="runtime-readout">
+            <span>Collider</span>
+            <strong id="collider-status">INACTIVE</strong>
+          </div>
+          <div class="runtime-readout collider-type-readout">
+            <span>Collider Type</span>
+            <strong id="collider-type">—</strong>
+          </div>
+          <div class="runtime-readout collider-speed-readout">
+            <span>Head Speed</span>
+            <strong><span id="head-speed">0</span> px/s</strong>
+          </div>
+          <div class="runtime-readout interaction-debug-readout">
+            <span>Hard Collisions</span>
+            <strong><span id="hard-collision-rate">0.0</span> / sec</strong>
+          </div>
+          <div class="runtime-readout interaction-debug-readout">
+            <span>Mid Flow 粒子</span>
+            <strong id="mid-flow-count">0</strong>
+          </div>
+          <div class="runtime-readout interaction-debug-readout">
+            <span>Outer Flow 粒子</span>
+            <strong id="outer-flow-count">0</strong>
+          </div>
+          <div class="runtime-readout interaction-debug-readout">
+            <span>Average Force</span>
+            <strong id="average-flow-force">0</strong>
+          </div>
+          <label class="collider-toggle" for="collider-toggle">
+            <input id="collider-toggle" type="checkbox" />
+            <span>显示 Collider</span>
+          </label>
+          <label class="collider-toggle" for="collision-points-toggle">
+            <input id="collision-points-toggle" type="checkbox" />
+            <span>显示 Collision Points</span>
+          </label>
+          <label class="collider-toggle interaction-debug-readout" for="flow-vectors-toggle">
+            <input id="flow-vectors-toggle" type="checkbox" />
+            <span>显示 Flow Vectors</span>
+          </label>
+          </aside>
+
+          <div class="prompt-card" id="prompt-card">
+          <div class="prompt-icon" aria-hidden="true">⌁</div>
+          <div>
+            <strong id="prompt-title">先对镜头微笑</strong>
+            <span id="prompt-hint">嘴角轻轻上扬，雨会落下</span>
+          </div>
+          </div>
+
+          <div class="permission-screen" id="permission-screen">
+          <div class="permission-copy">
+            <span class="eyebrow">CAMERA-BASED AR</span>
+            <h2>你的表情，<br /><em>会改变天气。</em></h2>
+            <p>画面只在设备本地处理，不会上传。请保持面部光线充足，进入后先自然微笑。</p>
+            <button id="start-button" type="button">
+              <span>开启摄像头</span>
+              <span aria-hidden="true">↗</span>
+            </button>
+            <p class="support-note">需要摄像头权限 · 推荐 Chrome / Safari 最新版</p>
+          </div>
+          <div class="orbital-visual" aria-hidden="true">
+            <div class="orbit orbit-a"></div>
+            <div class="orbit orbit-b"></div>
+            <div class="face-reticle"><span></span><span></span><span></span><span></span></div>
+          <div class="weather-glyph">☂</div>
+          </div>
+          </div>
+          <img class="figma-phone-camera" src="/figma-phone-camera.png" alt="" aria-hidden="true" />
+        </div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

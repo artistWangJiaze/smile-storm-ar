@@ -1,0 +1,1 @@
+{"extends":"../../tsconfig.app.json","compilerOptions":{"tsBuildInfoFile":"../../node_modules/.tmp/glow-preview.tsbuildinfo"},"include":["./*.ts","../../src/TDParticleSimulation.ts","../../src/HeadInteraction.ts","../../src/types.ts"]}

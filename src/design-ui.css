@@ -1,0 +1,56 @@
+/* Figma 390 × 844 viewport. Effects and camera keep their own rendering layers. */
+:root { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+.stage { background: #111; }
+.figma-stage-background, .stage-caption, .figma-phone-frame, .figma-phone-camera, .brand-lockup { display: none; }
+.phone-frame { position: relative; inset: auto; margin: 0 auto; width: min(100%, 390px); height: min(100dvh, 844px); transform: none; }
+.phone-screen { position: relative; inset: auto; width: 100%; height: 100%; border-radius: 0; }
+.topbar { position: absolute; inset: 31px auto auto 12px; padding: 0; display: block; }
+.signal-chip { height: 24px; padding: 4px 12px; border: 0; border-radius: 8px; gap: 4px; background: rgba(117,255,246,.01); backdrop-filter: blur(18.05px); box-shadow: none; color: #f6f6f6; font-size: 12px; line-height: 15.6px; font-weight: 500; letter-spacing: .1608px; white-space: nowrap; }
+.signal-dot { width: 4px; height: 4px; flex: 0 0 4px; background: url('/ui/figma/dot.svg') center/contain no-repeat !important; box-shadow: none !important; }
+.debug-panel { position: absolute; inset: 31px 0 auto 0; width: auto; padding: 0; background: none; border: none; border-radius: 0; box-shadow: none; backdrop-filter: none; pointer-events: none; }
+.debug-panel > :not(.state-readout):not(.metric-list), .metric[data-metric='cheek'], .metric output, .state-readout > span { display: none !important; }
+.state-readout { position: absolute; left: 117px; top: 0; margin: 0; border: 0; padding: 4px 12px; height: 24px; border-radius: 8px; background: rgba(117,255,246,.01); backdrop-filter: blur(18.05px); }
+body .state-readout strong { font: 500 12px/15.6px -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif; letter-spacing: .1608px; color: #f6f6f6 !important; text-shadow: none !important; }
+.metric-list { position: absolute; top: 38px; left: 12px; display: grid; gap: 7px; }
+.metric { display: flex; align-items: center; gap: 10px; height: 24px; padding: 4px 12px; border-radius: 8px; background: rgba(117,255,246,.01); backdrop-filter: blur(18.05px); }
+.metric[data-metric='smile'] { backdrop-filter: blur(6px); }
+.metric > div { font-size: 12px; line-height: 15.6px; font-weight: 500; letter-spacing: .1608px; color: #f6f6f6; }
+.metric progress { appearance: none; display: block; width: 66px; height: 4px; margin: 0; border: 0; border-radius: 99px; overflow: hidden; background: rgba(255,255,255,.2); }
+.metric progress::-webkit-progress-bar { background: rgba(255,255,255,.2); border-radius: 99px; }
+.metric progress::-webkit-progress-value { background: #d9d9d9; border-radius: 99px; }
+.metric progress::-moz-progress-bar { background: #d9d9d9; border-radius: 99px; }
+.prompt-card { position: absolute; left: 50%; right: auto; bottom: 29px; transform: translateX(-50%); width: 219px; height: 59px; padding: 11px 0 7px; display: block; text-align: center; border: 0; border-radius: 12px; background: rgba(40,40,40,.5); backdrop-filter: blur(18px); box-shadow: 0 8px 40px rgba(0,0,0,.12); }
+.prompt-icon { display: none; }
+.prompt-card strong { font-size: 15px; font-weight: 600; line-height: 19.5px; color: white; }
+.prompt-card span { margin-top: 3.5px; font-size: 14px; line-height: 18.2px; color: white; white-space: nowrap; }
+.onboarding[hidden] { display: none; }
+.onboarding { position: absolute; z-index: 9; width: 280px; max-width: calc(100% - 32px); left: 22px; top: 137px; color: #000; letter-spacing: 0; }
+.onboarding[data-step='1'] { top: auto; bottom: 120px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column-reverse; align-items: center; }
+.onboarding-arrow { display: block; width: 65px; height: 8px; }
+.onboarding[data-step='1'] .onboarding-arrow { width: 44px; transform: scaleY(-1); }
+.onboarding-card { width: 100%; padding: 16px; border-radius: 12px; background: white; box-shadow: 0 0 .5px rgba(0,0,0,.3), 0 4px 7px rgba(0,0,0,.1); }
+.onboarding-heading { height: 20px; display: flex; align-items: center; justify-content: space-between; }
+.onboarding-new { display: inline-flex; align-items: center; gap: 2px; padding: 2px 4px; height: 20px; background: #f9f9f9; border-radius: 4px; color: #2cb8c5; font-size: 12px; line-height: 16px; font-weight: 700; }
+.onboarding-new img { width: 12px; height: 12px; }
+.onboarding button { font-family: inherit; cursor: pointer; border: none; box-shadow: none; letter-spacing: 0; }
+.onboarding-close { display: grid; place-items: center; padding: 2px; width: 20px; height: 20px; background: none; }
+.onboarding-close img { width: 16px; height: 16px; }
+.onboarding h2 { margin: 8px 0; font-size: 16px; line-height: 22px; font-weight: 700; letter-spacing: .03px; }
+.onboarding p { margin: 0; font-size: 12px; line-height: 16px; font-weight: 400; color: rgba(28,31,35,.6); }
+.onboarding-footer { display: flex; align-items: center; justify-content: space-between; height: 32px; margin-top: 12px; font-size: 14px; line-height: 20px; color: rgba(34,39,39,.6); }
+.onboarding-actions { display: flex; gap: 8px; }
+.onboarding-actions button { border-radius: 6px; height: 32px; padding: 6px 12px; font-size: 14px; line-height: 20px; font-weight: 600; }
+.onboarding-next { background: #2cb8c5; color: white; }
+.onboarding-back { background: rgba(0,0,0,.05); color: rgba(28,31,35,.8); }
+.onboarding button:focus-visible { outline: 2px solid #168992; outline-offset: 2px; }
+.permission-screen { grid-template-columns: 1fr; padding: 32px; border-radius: 0; }
+.permission-copy h2 { font-size: 32px; }
+.permission-copy .eyebrow, .orbital-visual { display: none; }
+.permission-copy p { font-size: 14px; }
+#start-button { background: #2cb8c5; border-radius: 8px; }
+body.debug-ui .debug-panel { pointer-events: auto; }
+body.debug-ui .debug-panel > :not(.state-readout):not(.metric-list) { display: flex !important; position: relative; top: 120px; margin: 3px 12px; width: 230px; background: rgba(0,0,0,.7); }
+@media (max-width: 600px) { .phone-frame { width: 100%; height: 100dvh; } }
+.easter-egg[hidden] { display: none; }
+.easter-egg { position: absolute; z-index: 6; pointer-events: none; left: 0; right: 0; bottom: 0; height: 278px; backdrop-filter: blur(2px); background: linear-gradient(to bottom, transparent 0%, #000 142.99%); }
+.easter-egg p { position: absolute; top: 120px; left: 0; width: 100%; margin: 0; text-align: center; white-space: nowrap; font-size: min(32px,8.2cqw); font-weight: 700; line-height: 1.2; color: #00fff6; }

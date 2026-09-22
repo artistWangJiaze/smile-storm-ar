@@ -1,0 +1,16 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.svg"><title>烟花 · 动态光效小样</title><style>
+*{box-sizing:border-box}body{margin:0;background:#111318;color:#fff;font:16px/1.5 system-ui,sans-serif}main{max-width:850px;margin:auto;padding:20px}h1{font-size:22px;margin:0 0 8px}p{color:#bbc2cc;margin:8px 0 16px}#stage{width:100%;aspect-ratio:1;background:#000;position:relative}canvas{width:100%!important;height:100%!important;display:block}nav{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}button,a{font:inherit;color:inherit;background:#282e38;border:1px solid #647084;padding:9px 14px;border-radius:6px}button[aria-pressed=true]{background:#315878;border-color:#b1d6f5}button{cursor:pointer}a{background:none}button:focus-visible,a:focus-visible{outline:3px solid #a0d2ff;outline-offset:3px}
+.timeline{display:flex;align-items:center;gap:12px;margin:12px 0}#timeline{flex:1;min-width:0;accent-color:#77c8ff}#time{font-variant-numeric:tabular-nums}input:focus-visible{outline:3px solid #a0d2ff;outline-offset:3px}
+</style></head><body><main>
+<h1>烟花 · 连续动态 v3</h1>
+<p>缩放与绽放 → 连续外散 → 消失，共 2.6 秒。v3 去除 0.7–0.8 秒的回缩补偿，让放大速度延续到外散阶段。</p>
+<p><a href="./captures/continuous-v3/index.html">查看新版衔接截图</a> <a href="./growth.html">已确认的前段对照</a></p>
+<nav aria-label="预览控制">
+<button id="play" aria-pressed="false">播放动态</button><button id="replay">重新绽放</button>
+<button id="camera-button" aria-pressed="false">开启摄像头背景</button><button id="black" aria-pressed="true">黑底／关闭摄像头</button>
+</nav>
+<div class="timeline"><label for="timeline">进度</label><input id="timeline" type="range" min="0" max="2.6" step="0.01" value="0.85"><output id="time" for="timeline">0.85 / 2.60 秒</output></div>
+<p id="camera-status" role="status">摄像头只在点击后开启，不录制、不上传。</p>
+<video id="camera" muted playsinline hidden></video><div id="stage"></div>
+<nav aria-label="静态对照"><button id="target" aria-pressed="true">新小样 · 密集短火花</button><button id="previous" aria-pressed="false">上一版 · 1.35 秒</button><a href="/preview/glow/">返回旧动态预览</a></nav>
+<p id="status">载入原始纹饰…</p></main><script type="module" src="./target.ts"></script></body></html>

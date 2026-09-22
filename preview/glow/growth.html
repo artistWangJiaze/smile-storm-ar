@@ -1,0 +1,9 @@
+<!doctype html><html lang="zh"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,"><title>前段修改 · 缩放与绽放</title>
+<style>body{background:#14171c;color:#eee;font:16px system-ui;margin:24px auto;max-width:1200px;padding:0 16px}h1{font-size:24px}p{color:#bbc5d0;line-height:1.6}.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}.stage{aspect-ratio:1;background:black}canvas{width:100%!important;height:100%!important}button,select{padding:10px;margin:8px 8px 8px 0;background:#303a48;color:white;border:1px solid #68798e;border-radius:5px}input{width:65%}a{color:#8bd4ff}@media(max-width:650px){.pair{grid-template-columns:1fr}}video{max-width:400px;width:100%}</style>
+<h1>前段修改：整体缩放 + 内部绽放</h1><p>左：原来的整体缩放。右：相同缩放速度，同时花瓣舒展、粒子逐渐外喷。只检查前 0.85 秒；后段衔接尚未修改。</p>
+<button id="play">暂停</button><button id="restart">从头播放</button><select id="speed"><option value="0.35">慢速 0.35×</option><option value="1">原速 1×</option></select><button id="background">切换亮底</button>
+<div><input id="seek" type="range" min="0" max="0.85" step="0.001" value="0"><output id="time"></output></div>
+<div class="pair"><div><h2>原版 · 只有缩放</h2><div id="old" class="stage"></div></div><div><h2>新版 · 缩放同时绽放</h2><div id="new" class="stage"></div></div></div>
+<p id="status">载入中…</p><p><a href="./captures/growth-v1/index.html">查看 0–25 帧逐帧对照</a></p>
+<details><summary>你的参考视频（原始文件）</summary><video controls muted playsinline src="./captures/growth-reference/user-original.mp4"></video></details>
+<script type="module" src="./growth.ts"></script></html>

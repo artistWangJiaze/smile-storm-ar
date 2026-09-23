@@ -7,7 +7,7 @@ interface CandidateState {
 
 const ENTER_DELAY: Record<ExpressionState, number> = {
   NEUTRAL: 220,
-  SMILE: 320,
+  SMILE: 200,
   LAUGH: 160,
 };
 
@@ -63,8 +63,8 @@ export class ExpressionMachine {
 
     // A smile needs a stronger signal and a longer dwell than a laugh so
     // small mouth movements do not start the rain layer repeatedly.
-    const smileEnter = sample.smile > 0.42;
-    const smileHold = this.state === 'SMILE' && sample.smile > 0.34;
+    const smileEnter = sample.smile > 0.38;
+    const smileHold = this.state === 'SMILE' && sample.smile > 0.31;
     if (smileEnter || smileHold) return 'SMILE';
 
     return 'NEUTRAL';

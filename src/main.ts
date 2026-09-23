@@ -78,7 +78,10 @@ let modelReady = false;
 let effectsInitialized = false;
 let particles: ParticleEngineType | null = null;
 let effectsReady: Promise<void> | null = null;
-let rainVideoStopTimer = 0;
+let rainVideoReady = false;
+let rainReadyPromise: Promise<void> | null = null;
+let experienceReady = false;
+let onboardingStarted = false;
 const FACE_MODEL_TIMEOUT_MS = 15_000;
 
 function syncPhoneScreen() {
@@ -141,6 +144,9 @@ async function startCamera() {
   setCameraStatus('requesting', '正在请求权限');
   startButton.disabled = true;
   startButton.querySelector('span')!.textContent = '正在开启…';
+  // This call happens inside the user's click, allowing mobile browsers to
+  // unlock muted playback while the camera permission prompt is opening.
+  void prepareRainVideo();
 
   try {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -164,10 +170,11 @@ async function startCamera() {
     // models are several megabytes and can take a long time on mobile Safari,
     // especially on a cold CDN cache. The camera is usable immediately while
     // tracking warms up in the background.
-    setCameraStatus('ready', '摄像头已开启');
+    setCameraStatus('requesting', '正在准备互动');
     faceBadge.textContent = '模型加载中';
     startButton.querySelector('span')!.textContent = '摄像头已开启';
-    onboarding.start();
+    promptTitle.textContent = '正在准备互动效果';
+    promptHint.textContent = '摄像头已开启，请稍候';
 
     // Start the visual engine after the first camera frame and UI transition
     // have already painted. This prevents shader compilation from swallowing
@@ -188,8 +195,8 @@ async function startCamera() {
     void trackerReady.then(() => {
       modelReady = true;
       tracker?.start();
-      setCameraStatus('ready', '实时识别中');
       faceBadge.textContent = '寻找面部';
+      maybeStartExperience();
     }).catch((error) => {
       console.warn('Face model unavailable; camera remains active.', error);
       setCameraStatus('ready', '摄像头已开启');
@@ -226,6 +233,11 @@ function handleSample(sample: ExpressionSample) {
   updateMetric('cheekSquint', sample.cheekSquint);
   updateHeadCollider(sample.head);
 
+  // Calibration may run while the rain asset is still buffering. Do not ask
+  // the user to perform gestures until every first-interaction dependency is
+  // actually ready.
+  if (!experienceReady) return;
+
   const change = machine.update(sample, performance.now());
   if (change.changed) {
     setExpressionState(change.current);
@@ -258,32 +270,75 @@ function setExpressionState(state: ExpressionState) {
 }
 
 function setRainVideoActive(active: boolean) {
-  window.clearTimeout(rainVideoStopTimer);
   rainEffectVideo.classList.toggle('is-active', active);
   if (active) {
+    void prepareRainVideo();
+    if (rainVideoReady && rainEffectVideo.paused) {
+      void rainEffectVideo.play().catch(() => undefined);
+    }
+  }
+}
+
+function prepareRainVideo() {
+  if (rainReadyPromise) return rainReadyPromise;
+  rainReadyPromise = new Promise<void>((resolve) => {
     if (!rainEffectVideo.hasAttribute('src')) {
       const source = rainEffectVideo.dataset.src;
       if (source) rainEffectVideo.src = source;
     }
-    const playRainVideo = () => {
-      if (!rainEffectVideo.paused && !rainEffectVideo.ended) return;
-      void rainEffectVideo.play().catch(() => {
-        // Autoplay can be deferred until the camera permission gesture; the
-        // canplay listener below retries as soon as the first frame is ready.
-      });
-    };
-    if (rainEffectVideo.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
-      playRainVideo();
-    } else {
-      rainEffectVideo.addEventListener('canplay', playRainVideo, { once: true });
-      rainEffectVideo.addEventListener('loadeddata', playRainVideo, { once: true });
-      rainEffectVideo.load();
-    }
-    return;
-  }
+    rainEffectVideo.preload = 'auto';
+    rainEffectVideo.muted = true;
+    rainEffectVideo.loop = true;
 
-  // Let the 260ms opacity transition finish before pausing the loop.
-  rainVideoStopTimer = window.setTimeout(() => rainEffectVideo.pause(), 280);
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(slowTimer);
+      rainVideoReady = true;
+      // Once unlocked, keep the muted loop running. Expressions only fade the
+      // layer in and out, so threshold jitter can never freeze a visible frame.
+      void rainEffectVideo.play().catch(() => undefined);
+      maybeStartExperience();
+      resolve();
+    };
+    const fail = () => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(slowTimer);
+      setCameraStatus('error', '雨幕加载失败');
+      promptTitle.textContent = '互动效果加载失败';
+      promptHint.textContent = '请检查网络后刷新页面重试';
+      resolve();
+    };
+    const slowTimer = window.setTimeout(() => {
+      if (rainVideoReady) return;
+      setCameraStatus('requesting', '正在加载雨幕');
+      promptHint.textContent = '首次加载需要一点时间，请稍候';
+    }, 4_000);
+
+    rainEffectVideo.addEventListener('canplay', finish, { once: true });
+    rainEffectVideo.addEventListener('error', fail, { once: true });
+    rainEffectVideo.load();
+    // Preserve the user-gesture playback permission before the async camera
+    // request returns. The promise can remain pending until data is buffered.
+    void rainEffectVideo.play().catch(() => undefined);
+    if (rainEffectVideo.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) finish();
+  });
+  return rainReadyPromise;
+}
+
+function maybeStartExperience() {
+  if (experienceReady || !modelReady || !rainVideoReady) return;
+  experienceReady = true;
+  setCameraStatus('ready', '实时识别中');
+  faceBadge.textContent = '寻找面部';
+  machine.reset();
+  setExpressionState('NEUTRAL');
+  if (!onboardingStarted) {
+    onboardingStarted = true;
+    onboarding.start();
+  }
 }
 
 function updateHeadCollider(head: HeadCollider | null) {
@@ -370,7 +425,6 @@ function destroy() {
   tracker?.destroy();
   particles?.destroy();
   window.removeEventListener('resize', syncPhoneScreen);
-  window.clearTimeout(rainVideoStopTimer);
   rainEffectVideo.pause();
   stream?.getTracks().forEach((track) => track.stop());
 }

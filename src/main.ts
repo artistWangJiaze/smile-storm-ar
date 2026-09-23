@@ -6,7 +6,7 @@ import { HandControlTracker, handControl } from './HandControl';
 import { easterEgg, EasterEggView } from './EasterEgg';
 import { ExpressionMachine } from './ExpressionMachine';
 import { FaceTracker } from './FaceTracker';
-import { ParticleEngine } from './ParticleEngine';
+import type { ParticleEngine as ParticleEngineType } from './ParticleEngine';
 import type { ExpressionSample, ExpressionState, HeadCollider } from './types';
 
 type CameraStatus = 'idle' | 'requesting' | 'ready' | 'error';
@@ -76,6 +76,8 @@ let fpsStartedAt = performance.now();
 let previousFrameAt = performance.now();
 let modelReady = false;
 let effectsInitialized = false;
+let particles: ParticleEngineType | null = null;
+let effectsReady: Promise<void> | null = null;
 let rainVideoStopTimer = 0;
 const FACE_MODEL_TIMEOUT_MS = 15_000;
 
@@ -92,7 +94,6 @@ const onboarding = new Onboarding(stage);
 const eggView = new EasterEggView(stage);
 const debugUI = new URLSearchParams(location.search).get('debug') === '1';
 document.body.classList.toggle('debug-ui', debugUI);
-const particles = new ParticleEngine(effectsLayer);
 const localV3=true;
 if(localV3 && debugUI){
   stateCopy.LAUGH.hint='移动头部，把粒子弹开';
@@ -104,21 +105,29 @@ if(localV3 && debugUI){
   test.onclick=()=>{if(effectsInitialized)launchStrongFirework(currentSample?.head??null,1.25);};
   controls.append(label,test);document.body.append(controls);
 }
-particles.setBurstHandler((x, y) => {
-  impactFlash.style.setProperty('--burst-x', `${x}px`);
-  impactFlash.style.setProperty('--burst-y', `${y}px`);
-  impactFlash.classList.remove('is-active');
-  requestAnimationFrame(() => impactFlash.classList.add('is-active'));
-});
-const effectsReady = particles.init();
-effectsReady.then(() => {
-  effectsInitialized = true;
-}).catch((error) => {
-  // A slow or unavailable WebGL context must not block camera access or the
-  // face model. The camera can still be used while the visual layer retries
-  // on the next page load.
-  console.warn('Effects layer unavailable; keeping camera and tracking active.', error);
-});
+
+function ensureEffectsReady() {
+  if (effectsReady) return effectsReady;
+  // Keep Three.js, Pixi and the shader compiler out of the critical path for
+  // the first button. Their chunk is fetched only after the camera is visible.
+  effectsReady = import('./ParticleEngine').then(async ({ ParticleEngine }) => {
+    const instance = new ParticleEngine(effectsLayer);
+    particles = instance;
+    instance.setBurstHandler((x, y) => {
+      impactFlash.style.setProperty('--burst-x', `${x}px`);
+      impactFlash.style.setProperty('--burst-y', `${y}px`);
+      impactFlash.classList.remove('is-active');
+      requestAnimationFrame(() => impactFlash.classList.add('is-active'));
+    });
+    await instance.init();
+    effectsInitialized = true;
+  }).catch((error) => {
+    // A slow or unavailable WebGL context must not block camera access or the
+    // face model. The camera can still be used without the visual layer.
+    console.warn('Effects layer unavailable; keeping camera and tracking active.', error);
+  });
+  return effectsReady;
+}
 
 function setCameraStatus(nextStatus: CameraStatus, label: string) {
   cameraStatus = nextStatus;
@@ -159,6 +168,11 @@ async function startCamera() {
     faceBadge.textContent = '模型加载中';
     startButton.querySelector('span')!.textContent = '摄像头已开启';
     onboarding.start();
+
+    // Start the visual engine after the first camera frame and UI transition
+    // have already painted. This prevents shader compilation from swallowing
+    // the user's first click on slower phones and laptops.
+    window.setTimeout(() => void ensureEffectsReady(), 0);
 
     tracker = new FaceTracker(video, stage, handleSample);
     const trackerInit = tracker.init();
@@ -239,7 +253,7 @@ function setExpressionState(state: ExpressionState) {
   stateLabel.textContent = copy.label;
   promptTitle.textContent = copy.title;
   promptHint.textContent = copy.hint;
-  particles.setState(state);
+  particles?.setState(state);
   setRainVideoActive(state === 'SMILE');
 }
 
@@ -247,6 +261,10 @@ function setRainVideoActive(active: boolean) {
   window.clearTimeout(rainVideoStopTimer);
   rainEffectVideo.classList.toggle('is-active', active);
   if (active) {
+    if (!rainEffectVideo.hasAttribute('src')) {
+      const source = rainEffectVideo.dataset.src;
+      if (source) rainEffectVideo.src = source;
+    }
     const playRainVideo = () => {
       if (!rainEffectVideo.paused && !rainEffectVideo.ended) return;
       void rainEffectVideo.play().catch(() => {
@@ -297,7 +315,7 @@ function updateHeadCollider(head: HeadCollider | null) {
 }
 
 function launchStrongFirework(head: HeadCollider | null, intensity = 1) {
-  particles.launchFirework(head, intensity);
+  particles?.launchFirework(head, intensity);
 }
 
 function renderLoop(now: number) {
@@ -306,28 +324,29 @@ function renderLoop(now: number) {
   if(localV3) { easterEgg.tick(dtSeconds,handControl); eggView.render(); }
   frames += 1;
 
-  if (effectsInitialized) {
-    particles.update(dtSeconds, currentSample?.head ?? null);
-    const nextCollisionCount = particles.collisionCount.toString();
+  const activeParticles = particles;
+  if (effectsInitialized && activeParticles) {
+    activeParticles.update(dtSeconds, currentSample?.head ?? null);
+    const nextCollisionCount = activeParticles.collisionCount.toString();
     if (collisionCount.textContent !== nextCollisionCount) {
       collisionCount.textContent = nextCollisionCount;
     }
-    collisionRate.textContent = particles.collisionCountPerSecond.toFixed(1);
-    hardCollisionRate.textContent = particles.collisionCountPerSecond.toFixed(1);
-    midFlowCount.textContent = particles.particlesInMidFlow.toString();
-    outerFlowCount.textContent = particles.particlesInOuterFlow.toString();
-    averageFlowForce.textContent = Math.round(particles.averageInteractionForce).toString();
-    fireworkCount.textContent = particles.activeFireworkParticleCount.toString();
+    collisionRate.textContent = activeParticles.collisionCountPerSecond.toFixed(1);
+    hardCollisionRate.textContent = activeParticles.collisionCountPerSecond.toFixed(1);
+    midFlowCount.textContent = activeParticles.particlesInMidFlow.toString();
+    outerFlowCount.textContent = activeParticles.particlesInOuterFlow.toString();
+    averageFlowForce.textContent = Math.round(activeParticles.averageInteractionForce).toString();
+    fireworkCount.textContent = activeParticles.activeFireworkParticleCount.toString();
     colliderStatus.textContent = currentSample?.head ? 'ACTIVE' : 'INACTIVE';
-    headSpeed.textContent = Math.round(particles.headSpeed).toString();
-    const velocityMagnitude = particles.headSpeed;
+    headSpeed.textContent = Math.round(activeParticles.headSpeed).toString();
+    const velocityMagnitude = activeParticles.headSpeed;
     headColliderElement.classList.toggle('has-velocity', velocityMagnitude > 8 && Boolean(currentSample?.head));
     if (currentSample?.head && velocityMagnitude > 8) {
       const scale = Math.min(0.65, velocityMagnitude > 0 ? 34 / velocityMagnitude : 0);
       // Direction is represented by the current smoothed velocity; keep the
       // vector short and inside the debug collider bounds.
-      const vx = particles.headVelocityXValue;
-      const vy = particles.headVelocityYValue;
+      const vx = activeParticles.headVelocityXValue;
+      const vy = activeParticles.headVelocityYValue;
       headVelocityVector.setAttribute('x1', '50');
       headVelocityVector.setAttribute('y1', '50');
       headVelocityVector.setAttribute('x2', `${50 + vx * scale}`);
@@ -349,7 +368,7 @@ function renderLoop(now: number) {
 function destroy() {
   handTracker?.destroy();
   tracker?.destroy();
-  particles.destroy();
+  particles?.destroy();
   window.removeEventListener('resize', syncPhoneScreen);
   window.clearTimeout(rainVideoStopTimer);
   rainEffectVideo.pause();
@@ -360,17 +379,17 @@ startButton.addEventListener('click', startCamera);
 colliderToggle.addEventListener('change', () => {
   headColliderElement.classList.toggle('debug-visible', colliderToggle.checked && Boolean(currentSample?.head));
   debugPanel.classList.toggle('show-interaction-debug', colliderToggle.checked);
-  particles.setColliderDebug(colliderToggle.checked);
+  particles?.setColliderDebug(colliderToggle.checked);
   if (!colliderToggle.checked) {
     flowVectorsToggle.checked = false;
-    particles.setFlowVectorDebug(false);
+    particles?.setFlowVectorDebug(false);
   }
 });
 collisionPointsToggle.addEventListener('change', () => {
-  particles.setCollisionDebug(collisionPointsToggle.checked);
+  particles?.setCollisionDebug(collisionPointsToggle.checked);
 });
 flowVectorsToggle.addEventListener('change', () => {
-  particles.setFlowVectorDebug(flowVectorsToggle.checked);
+  particles?.setFlowVectorDebug(flowVectorsToggle.checked);
 });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) tracker?.stop();

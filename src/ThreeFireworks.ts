@@ -342,15 +342,15 @@ export class ThreeFireworks {
       ? clamp(head.cx + random(-this.width * 0.1, this.width * 0.1), this.width * 0.18, this.width * 0.82)
       : this.width * random(0.18, 0.82);
     const targetY = head
-      ? clamp(head.cy - head.ry * random(1.3, 1.6), this.height * 0.18, this.height * 0.38)
-      : this.height * random(0.22, 0.38);
+      ? clamp(head.cy - head.ry * random(1.75, 2.05), this.height * 0.12, this.height * 0.30)
+      : this.height * random(0.14, 0.30);
     rocket.x = targetX;
     rocket.y = this.height + 20;
     rocket.vx = random(-55, 55);
-    // A slower, longer ascent gives the laugh-triggered rocket a readable
-    // launch phase before it blooms in the upper-middle of the stage.
-    rocket.vy = -random(680, 820);
-    rocket.gravity = random(320, 400);
+    // Give the rocket a decisive lift while keeping the burst high above the
+    // tracked head, rather than letting it linger near the forehead.
+    rocket.vy = -random(1050, 1200);
+    rocket.gravity = random(300, 360);
     rocket.targetY = targetY;
     rocket.age = 0;
     rocket.intensity = clamp(intensity, 0.85, 1.2);

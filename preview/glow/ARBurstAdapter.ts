@@ -58,7 +58,7 @@ export class ARBurstAdapter {
   this.bursts=this.bursts.filter(b=>handControl.active||b.age<2.6);
   const noCollision=handControl.active||easterEgg.active||easterEgg.pending;
   const before=this.renderer.arBouncedCount;
-  this.renderer.renderTargetFrame(0,false,true,this.bursts.map(b=>({...b,extent:Math.min(this.width,this.height)*1.05})),noCollision?null:head,noCollision?0:vx,noCollision?0:vy,dt);
+  this.renderer.renderTargetFrame(0,false,true,this.bursts.map(b=>({...b,extent:Math.min(this.width,this.height)*0.84})),noCollision?null:head,noCollision?0:vx,noCollision?0:vy,dt);
   return Math.max(0,this.renderer.arBouncedCount-before);
  }
  get available(){return this.renderer.ready;}

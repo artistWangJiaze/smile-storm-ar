@@ -2,7 +2,7 @@ const STORAGE_KEY = 'smile-storm:onboarding:figma-v1';
 const steps = [
   { title: '动作说明', description: '这里会告诉你当前要进行的动作' },
   { title: '实时状态', description: '这里展示了系统状态、以及你的表情状态、还有微笑和大笑张嘴的幅度变化' },
-  { title: '彩蛋', description: '最后，当你试过微笑和大笑，有一个小惊喜在等着你！' },
+  { title: '彩蛋', description: '最后，当你试过微笑和大笑，第三次大笑时，有一个小惊喜在等着你！' },
 ];
 
 export class Onboarding {

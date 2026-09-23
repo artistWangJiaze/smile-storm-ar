@@ -112,6 +112,11 @@ particles.setBurstHandler((x, y) => {
 const effectsReady = particles.init();
 effectsReady.then(() => {
   effectsInitialized = true;
+}).catch((error) => {
+  // A slow or unavailable WebGL context must not block camera access or the
+  // face model. The camera can still be used while the visual layer retries
+  // on the next page load.
+  console.warn('Effects layer unavailable; keeping camera and tracking active.', error);
 });
 
 function setCameraStatus(nextStatus: CameraStatus, label: string) {
@@ -145,17 +150,28 @@ async function startCamera() {
     await video.play();
 
     permissionScreen.classList.add('is-hidden');
-    setCameraStatus('requesting', '正在载入表情模型');
+    // Do not make the first camera frame wait for MediaPipe or WebGL. Both
+    // models are several megabytes and can take a long time on mobile Safari,
+    // especially on a cold CDN cache. The camera is usable immediately while
+    // tracking warms up in the background.
+    setCameraStatus('ready', '摄像头已开启');
     faceBadge.textContent = '模型加载中';
-
-    tracker = new FaceTracker(video, stage, handleSample);
-    await Promise.all([effectsReady, tracker.init()]);
-    modelReady = true;
-    tracker.start();
-    setCameraStatus('ready', '实时识别中');
-    faceBadge.textContent = '寻找面部';
     startButton.querySelector('span')!.textContent = '摄像头已开启';
     onboarding.start();
+
+    tracker = new FaceTracker(video, stage, handleSample);
+    void tracker.init().then(() => {
+      modelReady = true;
+      tracker?.start();
+      setCameraStatus('ready', '实时识别中');
+      faceBadge.textContent = '寻找面部';
+    }).catch((error) => {
+      console.warn('Face model unavailable; camera remains active.', error);
+      setCameraStatus('ready', '摄像头已开启');
+      faceBadge.textContent = '模型不可用';
+      promptHint.textContent = '表情模型加载失败，请刷新重试';
+    });
+
     if (localV3) {
       handTracker?.destroy();
       handTracker = new HandControlTracker(video);

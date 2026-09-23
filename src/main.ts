@@ -77,6 +77,7 @@ let previousFrameAt = performance.now();
 let modelReady = false;
 let effectsInitialized = false;
 let rainVideoStopTimer = 0;
+const FACE_MODEL_TIMEOUT_MS = 15_000;
 
 function syncPhoneScreen() {
   // The camera, tracking and effects share the actual responsive viewport.
@@ -160,7 +161,17 @@ async function startCamera() {
     onboarding.start();
 
     tracker = new FaceTracker(video, stage, handleSample);
-    void tracker.init().then(() => {
+    const trackerInit = tracker.init();
+    // Keep a rejected late load from becoming an unhandled promise after the
+    // timeout race has already reported a usable camera fallback.
+    trackerInit.catch(() => undefined);
+    const trackerReady = Promise.race([
+      trackerInit,
+      new Promise<never>((_, reject) => {
+        window.setTimeout(() => reject(new Error('Face model load timed out')), FACE_MODEL_TIMEOUT_MS);
+      }),
+    ]);
+    void trackerReady.then(() => {
       modelReady = true;
       tracker?.start();
       setCameraStatus('ready', '实时识别中');

@@ -182,18 +182,22 @@ void main(){
   }
   vec3 bg=toLinear(background);
   if(uCompositeMode==2){
-    // Preserve the approved black-background light exactly. Hybrid coverage
-    // retains saturated particle colours over video, while bloom adds light
-    // without a rectangular matte or a global background dimmer.
-    vec3 radiance=body+nearLight*0.22+midLight*0.12+wideLight*0.045;
-    vec3 light=clamp(radiance*1.65,0.0,1.0);
+    // Map all RGB channels with one shared scale. Per-channel clipping made
+    // overlapping palettes converge to white, especially on camera video.
+    vec3 radiance=max(body+nearLight*0.10+midLight*0.045+wideLight*0.012,vec3(0));
+    float luminance=dot(radiance,vec3(0.2126,0.7152,0.0722));
+    float mappedLuminance=0.88*(1.0-exp(-luminance*0.85));
+    vec3 light=radiance*(mappedLuminance/max(luminance,0.00001));
+    float grey=dot(light,vec3(0.2126,0.7152,0.0722));
+    light=mix(vec3(grey),light,1.32);
+    float peak=max(max(light.r,light.g),light.b);
+    if(peak>0.88) light*=0.88/peak;
     float density=texture(uScene,vUv).a;
-    float bodyPeak=max(max(body.r,body.g),body.b);
-    float coverage=clamp(max(1.0-exp(-density*2.0),min(bodyPeak*1.65,1.0)*0.98),0.0,1.0);
+    float coverage=clamp(1.0-exp(-density*1.45),0.0,0.72);
     if(uBackground==3){
       vec3 displayLight=toDisplay(light);
-      float alpha=max(coverage,max(max(displayLight.r,displayLight.g),displayLight.b));
-      outColor=vec4(displayLight,alpha);return;
+      float alpha=max(coverage,min(peak*0.42,0.72));
+      outColor=vec4(displayLight*alpha,alpha);return;
     }
     outColor=vec4(toDisplay(clamp(bg*(1.0-coverage)+light,0.0,1.0)),1.0);return;
   }
@@ -486,6 +490,14 @@ export class GlowPreviewRenderer {
         }
       }
     }
+    // Once the last burst is gone, clear the transparent canvas and skip the
+    // simulation draw plus all nine bloom passes until another burst arrives.
+    if(placements&&placements.length===0){
+      this.targetFrame=true;
+      gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,this.width,this.height);
+      gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+      return;
+    }
     this.clearAccumulation();this.previousTarget=0;
     gl.bindFramebuffer(gl.FRAMEBUFFER,this.targets[0].framebuffer);
     gl.viewport(0,0,this.width,this.height);gl.bindVertexArray(this.vao);
@@ -497,7 +509,9 @@ export class GlowPreviewRenderer {
       gl.uniform1f(gl.getUniformLocation(this.targetBodyProgram,'uTime'),time);
       gl.drawArrays(gl.TRIANGLES,0,3);
     }
-    gl.useProgram(pointProgram);gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE);
+    gl.useProgram(pointProgram);gl.enable(gl.BLEND);
+    if(placements) gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE);
+    else gl.blendFunc(gl.ONE,gl.ONE);
     gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.imageTextures[0]);
     gl.uniform1i(gl.getUniformLocation(pointProgram,'uImage'),0);
     gl.uniform2f(gl.getUniformLocation(pointProgram,'uViewport'),this.width,this.height);
@@ -536,7 +550,7 @@ export class GlowPreviewRenderer {
     gl.uniform1i(this.displayUniforms.uBloomMid, 2);
     gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, this.bloomTargets[4].texture);
     gl.uniform1i(this.displayUniforms.uBloomWide, 3);
-    gl.uniform1f(this.displayUniforms.uGlow, 1.7);
+    gl.uniform1f(this.displayUniforms.uGlow, this.targetFrame ? 0.92 : 1.7);
     const video = this.cameraVideo;
     const cameraReady = this.backgroundMode === 'camera' && video && video.readyState >= 2 && video.videoWidth > 0;
     gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, this.cameraTexture);

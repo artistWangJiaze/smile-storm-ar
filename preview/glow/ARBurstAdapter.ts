@@ -3,6 +3,8 @@ import type { HeadCollider } from '../../src/types';
 import { handControl, handAnimationAge } from '../../src/HandControl';
 import { easterEgg } from '../../src/EasterEgg';
 
+const MAX_SIMULTANEOUS_BURSTS = 2;
+
 // Local integration gate: retains the established rocket/expression pipeline.
 // The approved trajectory and the existing persistent collision solver share
 // the same visible particles. Palette selection is preserved per burst.
@@ -24,7 +26,9 @@ export class ARBurstAdapter {
   if(!this.available)return;
   if(this.eggBurstId!==null && (easterEgg.pending||easterEgg.active)) return;
   if(handControl.active && this.bursts.length && !easterEgg.pending) return;
-  if(this.bursts.length>=4)this.bursts.shift();
+  // Each live flower simulates and draws 270k particles. Keep two visible
+  // bursts for overlap while bounding transform-feedback and raster work.
+  if(this.bursts.length>=MAX_SIMULTANEOUS_BURSTS)this.bursts.shift();
   this.bursts.push({id:this.nextId++,start:this.time,x,y,palette:Math.abs(palette)%3,age:0,angle:0});
   if(easterEgg.pending){
     this.bursts=this.bursts.slice(-1);

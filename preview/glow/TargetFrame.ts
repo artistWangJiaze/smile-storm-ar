@@ -13,6 +13,7 @@ uniform sampler2D uImage;
 uniform vec2 uViewport;
 uniform float uPixelRatio;
 uniform int uLayer;
+uniform int uParticleStep;
 uniform float uTime;
 out vec3 vEmission;
 out vec2 vDirection;
@@ -26,7 +27,8 @@ float hash(float n){
 }
 void main(){
   int layer=uLayer;
-  int id=gl_VertexID;
+  int sampleStep=max(uParticleStep,1);
+  int id=gl_VertexID*sampleStep;
   vec2 uv=(vec2(float(id%300),float(id/300))+0.5)/300.0;
   if(layer>0){
     float theta=uv.x*6.2831853;
@@ -84,4 +86,11 @@ void main(){
   float gain=layer==0?7.0:(layer==1?mix(1.0,7.0,hot):0.65);
   vEmission=colour*bright*gain*(layer==0?1.0:mix(0.45,1.0,m))*life;
   vCoverage=(layer==0?0.65:0.28)*life;
+  // Later simultaneous bursts sample the same source evenly instead of
+  // truncating one side of the ornament. Compensate the retained samples so
+  // density, colour energy and trails remain visually close to the full grid.
+  float lodGain=sqrt(float(sampleStep));
+  gl_PointSize*=mix(1.0,lodGain,0.24);
+  vEmission*=lodGain;
+  vCoverage*=min(1.6,lodGain);
 }`;

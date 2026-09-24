@@ -153,11 +153,12 @@ uniform sampler2D uCamera;
 uniform int uBackground;
 uniform int uCompositeMode;
 uniform vec2 uCameraScale;
-uniform float uGlow;
+uniform float uGlow,uSaturation,uHighlightDetail,uCoreTint,uInnerColourParticles,uColourParticleLight;
 in vec2 vUv;
 out vec4 outColor;
 vec3 toLinear(vec3 c){return mix(c/12.92,pow((c+0.055)/1.055,vec3(2.4)),step(vec3(0.04045),c));}
 vec3 toDisplay(vec3 c){return mix(c*12.92,1.055*pow(max(c,vec3(0)),vec3(1.0/2.4))-0.055,step(vec3(0.0031308),c));}
+float hash21(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 void main(){
   vec3 body=texture(uScene,vUv).rgb;
   vec3 nearLight=texture(uBloomNear,vUv).rgb;
@@ -190,6 +191,51 @@ void main(){
     // to the sharpest particle cores so the outer colours stay saturated.
     vec3 light=clamp(radiance*1.65,0.0,1.0);
     light=clamp(light+vec3(1.0,0.97,0.90)*hot*0.16,0.0,1.0);
+    // Narrow the broad clipped-white plateau while leaving the sparse sharp
+    // cores at the original peak. Peak brightness stays available, but centre
+    // detail is no longer buried under a large flat area of white.
+    float hardPeak=max(max(light.r,light.g),light.b);
+    float whitePlateau=smoothstep(0.72,1.0,hardPeak);
+    float sharpCore=smoothstep(0.10,0.34,hot);
+    float plateauReduction=uHighlightDetail*whitePlateau*(1.0-sharpCore);
+    light*=1.0-plateauReduction;
+    // Local colour study: separate the RGB channels without changing the
+    // brightest channel of any pixel. This preserves the approved peak light.
+    float originalPeak=max(max(light.r,light.g),light.b);
+    // Once RGB has clipped to white, ordinary saturation cannot recover hue.
+    // Borrow only the channel ratio from the unclipped radiance, then restore
+    // the exact original peak. 8/12/16 therefore remain visible even in the
+    // white-hot area without making any pixel brighter or darker at its peak.
+    vec3 hueSource=max(radiance+vec3(1.0,0.97,0.90)*hot*0.10,vec3(0));
+    float huePeak=max(max(hueSource.r,hueSource.g),hueSource.b);
+    vec3 clippedRatio=light/max(originalPeak,0.00001);
+    vec3 hueRatio=hueSource/max(huePeak,0.00001);
+    // Keep the white-hot centre optically neutral. Colour recovery belongs to
+    // the shoulder and outer particles; tinting the peak creates pastel cyan /
+    // pink shapes that read as colour distortion instead of emitted light.
+    float highlightProtection=1.0-smoothstep(0.68,0.96,originalPeak);
+    float recovery=clamp((uSaturation-1.0)*2.0*highlightProtection,0.0,1.0);
+    light=mix(clippedRatio,hueRatio,recovery)*originalPeak;
+    // Give the broad white centre one coherent warm blush instead of
+    // reconstructing saturated source hues there. Red stays at 1.0, so the
+    // peak is unchanged while green/blue recede by only a few percent.
+    float tintMask=smoothstep(0.72,0.98,hardPeak)*(1.0-sharpCore*0.35);
+    vec3 warmBlush=vec3(1.0,0.86,0.76);
+    light=mix(light,light*warmBlush,uCoreTint*tintMask);
+    // Restore source colour on a sparse subset of actual sharp particle pixels
+    // inside the white centre. The white field stays neutral; colour appears as
+    // individual sparks rather than a tint or reconstructed flower graphic.
+    float radius=length(vUv-0.5);
+    float innerZone=1.0-smoothstep(0.18,0.47,radius);
+    float sourceFloor=min(min(hueRatio.r,hueRatio.g),hueRatio.b);
+    float sourceChroma=1.0-sourceFloor;
+    float sharpParticle=smoothstep(0.025,0.22,core);
+    float selector=step(1.0-uInnerColourParticles,hash21(floor(vUv*520.0)));
+    float colouredParticle=innerZone*sharpParticle*smoothstep(0.08,0.30,sourceChroma)*selector;
+    // Raise coloured spark radiance by scaling its existing RGB ratio. No
+    // white is added, so extra brightness does not desaturate the particle.
+    float colourParticlePeak=min(1.0,originalPeak*(1.0+uColourParticleLight));
+    light=mix(light,hueRatio*colourParticlePeak,colouredParticle*0.82);
     float density=texture(uScene,vUv).a;
     float bodyPeak=max(max(body.r,body.g),body.b);
     float coverage=clamp(max(1.0-exp(-density*2.0),min(bodyPeak*1.65,1.0)*0.98),0.0,1.0);
@@ -274,6 +320,11 @@ export class GlowPreviewRenderer {
   private cameraVideo: HTMLVideoElement | null = null;
   private cameraTexture: WebGLTexture | null = null;
   private compositeMode: 'current' | 'colour-glow' = 'colour-glow';
+  private saturation = 1;
+  private highlightDetail = 0;
+  private coreTint = 0;
+  private innerColourParticles = 0;
+  private colourParticleLight = 0;
   private targetProgram: WebGLProgram | null = null;
   private growthProgram: WebGLProgram | null = null;
   private continuousProgram: WebGLProgram | null = null;
@@ -319,7 +370,7 @@ export class GlowPreviewRenderer {
     for (const name of ['uPrevious', 'uDecay', 'uCutoff']) this.feedbackUniforms[name] = this.gl.getUniformLocation(this.feedbackProgram, name);
     for (const name of ['uScene']) this.emissionUniforms[name] = this.gl.getUniformLocation(this.emissionProgram, name);
     for (const name of ['uSource', 'uTexel', 'uDirection', 'uRadius']) this.blurUniforms[name] = this.gl.getUniformLocation(this.blurProgram, name);
-    for (const name of ['uScene', 'uBloomNear', 'uBloomMid', 'uBloomWide', 'uGlow', 'uCamera', 'uBackground', 'uCameraScale', 'uCompositeMode']) this.displayUniforms[name] = this.gl.getUniformLocation(this.displayProgram, name);
+    for (const name of ['uScene', 'uBloomNear', 'uBloomMid', 'uBloomWide', 'uGlow', 'uSaturation', 'uHighlightDetail', 'uCoreTint', 'uInnerColourParticles', 'uColourParticleLight', 'uCamera', 'uBackground', 'uCameraScale', 'uCompositeMode']) this.displayUniforms[name] = this.gl.getUniformLocation(this.displayProgram, name);
     this.fallbackTexture = this.createTexture(1, 1, new Uint8Array([0, 0, 0, 0]));
     this.cameraTexture = this.createTexture(1, 1, new Uint8Array([0, 0, 0, 255]));
     this.loadTextures();
@@ -451,7 +502,32 @@ export class GlowPreviewRenderer {
     this.refreshBackground();
   }
 
-  renderTargetFrame(time = -1, growthStudy = false, continuous = false, placements?: Array<{id:number;age:number;x:number;y:number;extent:number;palette:number;angle?:number}>, head:HeadCollider|null=null, headVx=0, headVy=0, dt=1/60) {
+  setSaturationBoost(percent: number) {
+    this.saturation = 1 + Math.max(0, percent) / 100;
+    this.refreshBackground();
+  }
+
+  setHighlightDetail(percent: number) {
+    this.highlightDetail = Math.max(0, Math.min(100, percent)) / 100;
+    this.refreshBackground();
+  }
+
+  setCoreTint(percent: number) {
+    this.coreTint = Math.max(0, Math.min(100, percent)) / 100;
+    this.refreshBackground();
+  }
+
+  setInnerColourParticles(percent: number) {
+    this.innerColourParticles = Math.max(0, Math.min(100, percent)) / 100;
+    this.refreshBackground();
+  }
+
+  setColourParticleLight(percent: number) {
+    this.colourParticleLight = Math.max(0, Math.min(100, percent)) / 100;
+    this.refreshBackground();
+  }
+
+  renderTargetFrame(time = -1, growthStudy = false, continuous = false, placements?: Array<{id:number;age:number;x:number;y:number;extent:number;palette:number;angle?:number;particleStep?:number}>, head:HeadCollider|null=null, headVx=0, headVy=0, dt=1/60) {
     const gl=this.gl;
     if(!gl||!this.ready||this.targets.length!==2) return;
     this.targetProgram??=createProgram(gl,targetVertex,pointFragmentShader);
@@ -469,23 +545,27 @@ export class GlowPreviewRenderer {
       for(const p of placements){
         let states=this.arStates.get(p.id);
         if(!states){states=Array.from({length:3},()=>this.arSimulation!.createState());this.arStates.set(p.id,states);}
+        // One representative layer is enough for collision statistics and the
+        // local impact plan. Reading all three 90k-state buffers caused large
+        // periodic GPU-to-CPU stalls when two or three flowers overlapped.
+        const primary=states[0];
+        if(head) this.arSimulation.updateStats(primary,p.age);
+        const contact=primary.stats.firstContact;
+        let sharedImpact=this.arImpacts.get(primary);
+        if(head&&contact&&!sharedImpact){
+          sharedImpact={time:p.age,x:head.cx,y:head.cy,sites:createLocalImpactSites(head,contact.x+contact.nx*3,contact.y+contact.ny*3,p.id)};
+          this.arImpacts.set(primary,sharedImpact);
+        }
+        if(head&&sharedImpact&&p.age-sharedImpact.time<0.45){
+          for(const site of sharedImpact.sites){site.x+=head.cx-sharedImpact.x;site.y+=head.cy-sharedImpact.y;}
+          sharedImpact.x=head.cx;sharedImpact.y=head.cy;
+        }
+        const sharedSites=sharedImpact&&p.age-sharedImpact.time<0.45?sharedImpact.sites:[];
         for(let layer=0;layer<3;layer++){
           const state=states[layer];
-          this.arSimulation.updateStats(state,p.age);
-          const contact=state.stats.firstContact;
-          let impact=this.arImpacts.get(state);
-          if(head&&contact&&!impact){
-            impact={time:p.age,x:head.cx,y:head.cy,sites:createLocalImpactSites(head,contact.x+contact.nx*3,contact.y+contact.ny*3,p.id)};
-            this.arImpacts.set(state,impact);
-          }
-          if(head&&impact&&p.age-impact.time<0.45){
-            for(const site of impact.sites){site.x+=head.cx-impact.x;site.y+=head.cy-impact.y;}
-            impact.x=head.cx;impact.y=head.cy;
-          }
-          const sites=impact&&p.age-impact.time<0.45?impact.sites:[];
           this.arSimulation.step(state,{image:(this.imageTextures[p.palette]??this.fallbackTexture)!,x:p.x,y:p.y,
             time:p.age,dt:Math.max(0.001,Math.min(dt,0.05)),scale:p.extent,dispersion:p.angle??0,seed:p.id,layer,
-            head,headVx,headVy,sites});
+            head,headVx,headVy,sites:sharedSites,particleStep:p.particleStep});
         }
       }
     }
@@ -507,12 +587,14 @@ export class GlowPreviewRenderer {
     gl.uniform1f(gl.getUniformLocation(pointProgram,'uPixelRatio'),this.dpr);
     gl.uniform1f(gl.getUniformLocation(pointProgram,'uTime'),time);
     for(const instance of placements??[{id:0,age:time,x:0,y:0,extent:0,palette:0}]){
+      const particleStep=Math.max(1,Math.floor(instance.particleStep??1));
       gl.uniform1f(gl.getUniformLocation(pointProgram,'uTime'),instance.age);
+      gl.uniform1i(gl.getUniformLocation(pointProgram,'uParticleStep'),particleStep);
       gl.bindTexture(gl.TEXTURE_2D,this.imageTextures[instance.palette]??this.fallbackTexture);
       for(let layer=0;layer<3;layer++){
         if(placements){const s=this.arStates.get(instance.id)![layer];gl.bindVertexArray(s.vaos[s.current]);}
         gl.uniform1i(gl.getUniformLocation(pointProgram,'uLayer'),layer);
-        gl.drawArrays(gl.POINTS,0,90000);
+        gl.drawArrays(gl.POINTS,0,Math.ceil(90000/particleStep));
       }
     }
     gl.bindVertexArray(this.vao);
@@ -540,6 +622,11 @@ export class GlowPreviewRenderer {
     gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, this.bloomTargets[4].texture);
     gl.uniform1i(this.displayUniforms.uBloomWide, 3);
     gl.uniform1f(this.displayUniforms.uGlow, 1.7);
+    gl.uniform1f(this.displayUniforms.uSaturation, this.saturation);
+    gl.uniform1f(this.displayUniforms.uHighlightDetail, this.highlightDetail);
+    gl.uniform1f(this.displayUniforms.uCoreTint, this.coreTint);
+    gl.uniform1f(this.displayUniforms.uInnerColourParticles, this.innerColourParticles);
+    gl.uniform1f(this.displayUniforms.uColourParticleLight, this.colourParticleLight);
     const video = this.cameraVideo;
     const cameraReady = this.backgroundMode === 'camera' && video && video.readyState >= 2 && video.videoWidth > 0;
     gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, this.cameraTexture);

@@ -42,6 +42,7 @@ interface SimulationInput {
   headVx: number;
   headVy: number;
   sites: LocalImpactSite[];
+  particleStep?: number;
 }
 
 export const collisionVertex = `#version 300 es
@@ -50,6 +51,7 @@ layout(location=0) in vec4 aState;
 layout(location=1) in vec4 aContact;
 layout(location=2) in vec4 aHistory;
 uniform sampler2D uImage;
+uniform int uParticleStep;
 uniform vec2 uOrigin;
 uniform float uTime, uDt, uScale, uDispersion, uSeed;
 uniform bool uReset;
@@ -82,7 +84,8 @@ vec2 sourcePosition(vec2 uv) {
   float r=length(base);
   vec2 dir=r>0.001?base/r:vec2(1,0);
   vec2 tangent=vec2(-dir.y,dir.x);
-  float x=float(gl_VertexID%${TD_GRID}), y=float(gl_VertexID/${TD_GRID});
+  int particleId=gl_VertexID*max(uParticleStep,1);
+  float x=float(particleId%${TD_GRID}), y=float(particleId/${TD_GRID});
   float seedA=hash(vec3(x,y,11)),seedB=hash(vec3(x,y,23)),seedC=hash(vec3(x,y,41));
   float stretch=noise(vec3(p*9.0,uTime*0.09+uSeed));
   float bend=noise(vec3(p*11.0+vec2(7.3,19.1),uTime*0.12+uSeed*1.3));
@@ -101,7 +104,8 @@ vec2 edgeNormal(vec2 a,vec2 b) {
 }
 
 void main() {
-  vec2 uv=(vec2(float(gl_VertexID%${TD_GRID}),float(gl_VertexID/${TD_GRID}))+0.5)/float(${TD_GRID});
+  int particleId=gl_VertexID*max(uParticleStep,1);
+  vec2 uv=(vec2(float(particleId%${TD_GRID}),float(particleId/${TD_GRID}))+0.5)/float(${TD_GRID});
   vec4 source=texture(uImage,vec2(uv.x,1.0-uv.y));
   if(source.a<0.01||dot(source.rgb,vec3(0.2126,0.7152,0.0722))<0.238) {
     nextState=vec4(-10000, -10000, 0, 0); nextContact=vec4(0,0,-2,0); nextHistory=vec4(-10000); return;
@@ -197,7 +201,7 @@ export class TDParticleSimulation {
     gl.linkProgram(program); gl.deleteShader(vs); gl.deleteShader(fs);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program) ?? 'Particle simulation link failed');
     this.program = program; this.feedback = feedback;
-    for (const name of ['uLayer','uImage','uOrigin','uTime','uDt','uScale','uDispersion','uSeed','uReset','uHeadCount','uSiteCount','uHead[0]','uHeadCenter','uHeadVelocity','uHeadBounds','uSites[0]']) {
+    for (const name of ['uLayer','uParticleStep','uImage','uOrigin','uTime','uDt','uScale','uDispersion','uSeed','uReset','uHeadCount','uSiteCount','uHead[0]','uHeadCenter','uHeadVelocity','uHeadBounds','uSites[0]']) {
       this.uniforms[name] = gl.getUniformLocation(program, name);
     }
   }
@@ -234,6 +238,8 @@ export class TDParticleSimulation {
     const gl = this.gl, u = this.uniforms;
     gl.useProgram(this.program);
     gl.uniform1i(u.uLayer, input.layer ?? 0);
+    const particleStep=Math.max(1,Math.floor(input.particleStep ?? 1));
+    gl.uniform1i(u.uParticleStep,particleStep);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, input.image);
     gl.uniform1i(u.uImage, 0); gl.uniform2f(u.uOrigin, input.x, input.y);
     gl.uniform1f(u.uTime, input.time); gl.uniform1f(u.uDt, input.dt);
@@ -270,7 +276,7 @@ export class TDParticleSimulation {
     gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK,this.feedback);
     gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER,0,state.buffers[next]);
     gl.enable(gl.RASTERIZER_DISCARD); gl.beginTransformFeedback(gl.POINTS);
-    gl.drawArrays(gl.POINTS,0,TD_COUNT);
+    gl.drawArrays(gl.POINTS,0,Math.ceil(TD_COUNT/particleStep));
     gl.endTransformFeedback(); gl.disable(gl.RASTERIZER_DISCARD);
     gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER,0,null);
     gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK,null); gl.bindVertexArray(null);

@@ -14,10 +14,17 @@ export class ARBurstAdapter {
  private nextId=1;
  private handWasActive=false;
  private eggBurstId:number|null=null;
- private bursts:Array<{id:number;start:number;x:number;y:number;palette:number;age:number;angle:number}>=[];
+ private bursts:Array<{id:number;start:number;x:number;y:number;palette:number;age:number;angle:number;particleStep:number}>=[];
  constructor(mount:HTMLElement){
   this.renderer=new GlowPreviewRenderer(mount);
   this.renderer.setBackground('transparent');
+  // Approved colour treatment B: retain sparse white peaks, recover centre
+  // detail, and brighten coloured particles by scaling their own RGB ratio.
+  this.renderer.setSaturationBoost(12);
+  this.renderer.setHighlightDetail(14);
+  this.renderer.setCoreTint(0);
+  this.renderer.setInnerColourParticles(24);
+  this.renderer.setColourParticleLight(12);
  }
  resize(width:number,height:number){this.width=width;this.height=height;this.renderer.resize(width,height);}
  burst(x:number,y:number,palette:number){
@@ -25,7 +32,11 @@ export class ARBurstAdapter {
   if(this.eggBurstId!==null && (easterEgg.pending||easterEgg.active)) return;
   if(handControl.active && this.bursts.length && !easterEgg.pending) return;
   if(this.bursts.length>=4)this.bursts.shift();
-  this.bursts.push({id:this.nextId++,start:this.time,x,y,palette:Math.abs(palette)%3,age:0,angle:0});
+  // Keep the hero flower at full density. Extra simultaneous flowers sample
+  // the same source uniformly at lower cost; shader compensation retains their
+  // apparent density and coloured light instead of dropping a visible region.
+  const particleStep=this.bursts.length===0?1:this.bursts.length===1?2:3;
+  this.bursts.push({id:this.nextId++,start:this.time,x,y,palette:Math.abs(palette)%3,age:0,angle:0,particleStep});
   if(easterEgg.pending){
     this.bursts=this.bursts.slice(-1);
     this.eggBurstId=this.bursts[0].id;
@@ -63,6 +74,6 @@ export class ARBurstAdapter {
  }
  get available(){return this.renderer.ready;}
  get bouncedCount(){return this.renderer.arBouncedCount;}
- get activeCount(){return this.bursts.length*270000;}
+ get activeCount(){return this.bursts.reduce((total,burst)=>total+3*Math.ceil(90000/burst.particleStep),0);}
  dispose(){this.bursts=[];this.renderer.dispose();}
 }

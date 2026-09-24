@@ -158,7 +158,10 @@ async function startCamera() {
         facingMode: 'user',
         width: { ideal: 1280 },
         height: { ideal: 720 },
-        frameRate: { ideal: 30, max: 60 },
+        // Tracking and the AR compositor do not benefit from a 60 fps camera
+        // stream. Cap capture at 30 fps to leave GPU time for overlapping
+        // fireworks while the renderer can still animate independently.
+        frameRate: { ideal: 30, max: 30 },
       },
       audio: false,
     });

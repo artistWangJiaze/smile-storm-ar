@@ -68,3 +68,7 @@ HUD 会显示 Smile、Jaw Open、Cheek Squint、面部检测状态、推理 FPS�
 ## Vibecoding 复盘（200 字内）
 
 最大陷阱是把 MediaPipe 塞进 60 FPS 渲染循环，并为每个粒子创建刚体，导致主线程卡顿和 GC 峰值。改为 17 FPS 独立推理、EMA 状态机、预分配粒子池与单椭圆碰撞。纠偏 Prompt：「禁止逐帧推理和通用物理引擎；分离 inference/render，并用对象池与轻量椭圆反射完成头部碰撞。」
+
+## Interaction reference
+
+The camera-start loading interaction is an original lightweight implementation inspired by [Da7em by Da7_Tech](https://da7tech.com) — licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The particle target, colors, loading states, and implementation were adapted for Smile Storm AR.

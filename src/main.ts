@@ -6,6 +6,7 @@ import { HandControlTracker, handControl } from './HandControl';
 import { easterEgg, EasterEggView } from './EasterEgg';
 import { ExpressionMachine } from './ExpressionMachine';
 import { FaceTracker } from './FaceTracker';
+import { LoadingParticleScene } from './LoadingParticleScene';
 import type { ParticleEngine as ParticleEngineType } from './ParticleEngine';
 import type { ExpressionSample, ExpressionState, HeadCollider } from './types';
 
@@ -22,12 +23,14 @@ const faceBadge = document.querySelector<HTMLElement>('#face-badge')!;
 const stateLabel = document.querySelector<HTMLElement>('#state-label')!;
 const promptTitle = document.querySelector<HTMLElement>('#prompt-title')!;
 const promptHint = document.querySelector<HTMLElement>('#prompt-hint')!;
+const loadingGestureHint = document.querySelector<HTMLElement>('#loading-gesture-hint')!;
 const renderFps = document.querySelector<HTMLElement>('#render-fps')!;
 const inferenceFps = document.querySelector<HTMLElement>('#inference-fps')!;
 const headColliderElement = document.querySelector<HTMLElement>('#head-collider')!;
 const collisionCount = document.querySelector<HTMLElement>('#collision-count')!;
 const collisionRate = document.querySelector<HTMLElement>('#collision-rate')!;
 const effectsLayer = document.querySelector<HTMLElement>('#effects-layer')!;
+const loadingParticleCanvas = document.querySelector<HTMLCanvasElement>('#loading-particle-scene')!;
 const impactFlash = document.querySelector<HTMLElement>('#impact-flash')!;
 const fireworkCount = document.querySelector<HTMLElement>('#firework-count')!;
 const colliderStatus = document.querySelector<HTMLElement>('#collider-status')!;
@@ -60,7 +63,7 @@ const metricElements = {
 };
 
 const stateCopy: Record<ExpressionState, { label: string; title: string; hint: string }> = {
-  NEUTRAL: { label: '自然状态', title: '先对镜头微笑', hint: '嘴角轻轻上扬，雨会落下' },
+  NEUTRAL: { label: '自然状态', title: '微笑一下进入体验', hint: '嘴角轻轻上扬，雨会落下' },
   SMILE: { label: '微笑状态', title: '彩色雨幕已开启', hint: '继续大笑，点亮整片烟花' },
   LAUGH: { label: '大笑状态', title: '烟花正在绽放', hint: '移动头部，把粒子弹开' },
 };
@@ -68,6 +71,9 @@ const stateCopy: Record<ExpressionState, { label: string; title: string; hint: s
 let stream: MediaStream | null = null;
 let cameraStatus: CameraStatus = 'idle';
 let tracker: FaceTracker | null = null;
+let trackerInitPromise: Promise<void> | null = null;
+let modelWarmStartedAt = 0;
+let modelCountdownTimer = 0;
 let handTracker: HandControlTracker | null = null;
 let currentSample: ExpressionSample | null = null;
 let frames = 0;
@@ -82,7 +88,7 @@ let rainVideoReady = false;
 let rainReadyPromise: Promise<void> | null = null;
 let experienceReady = false;
 let onboardingStarted = false;
-const FACE_MODEL_TIMEOUT_MS = 15_000;
+const FACE_MODEL_SLOW_MS = 8_000;
 
 function syncPhoneScreen() {
   // The camera, tracking and effects share the actual responsive viewport.
@@ -95,7 +101,12 @@ window.addEventListener('resize', syncPhoneScreen);
 const machine = new ExpressionMachine();
 const onboarding = new Onboarding(stage);
 const eggView = new EasterEggView(stage);
-const debugUI = new URLSearchParams(location.search).get('debug') === '1';
+const loadingParticles = new LoadingParticleScene(loadingParticleCanvas);
+const pageParams = new URLSearchParams(location.search);
+// Keep debug panels behind an explicit QA flag. Legacy preview parameters are
+// ignored so an old test URL cannot skip the camera permission screen.
+const debugUI = ['localhost', '127.0.0.1'].includes(location.hostname)
+  && pageParams.get('qa') === '1';
 document.body.classList.toggle('debug-ui', debugUI);
 const localV3=true;
 if(localV3 && debugUI){
@@ -138,16 +149,60 @@ function setCameraStatus(nextStatus: CameraStatus, label: string) {
   signalLabel.textContent = label;
 }
 
+function ensureFaceTrackerReady() {
+  if (!tracker) tracker = new FaceTracker(video, stage, handleSample);
+  if (!trackerInitPromise) {
+    modelWarmStartedAt = performance.now();
+    trackerInitPromise = tracker.init()
+      .catch(error => {
+        tracker?.destroy();
+        tracker = null;
+        trackerInitPromise = null;
+        modelWarmStartedAt = 0;
+        throw error;
+      });
+  }
+  return trackerInitPromise;
+}
+
+function estimatedModelSeconds() {
+  const connection = (navigator as Navigator & { connection?: { effectiveType?: string } }).connection;
+  switch (connection?.effectiveType) {
+    case 'slow-2g': return 32;
+    case '2g': return 24;
+    case '3g': return 16;
+    case '4g': return 8;
+    default: return 10;
+  }
+}
+
+function startModelCountdown() {
+  stopModelCountdown();
+  const expectedSeconds = estimatedModelSeconds();
+  const update = () => {
+    if (modelReady) return;
+    const warmElapsed = modelWarmStartedAt ? (performance.now() - modelWarmStartedAt) / 1000 : 0;
+    const remaining = Math.ceil(expectedSeconds - warmElapsed);
+    promptTitle.textContent = '正在准备互动效果';
+    promptHint.textContent = remaining > 0
+      ? `表情模型加载中，预计剩余约 ${remaining} 秒`
+      : '表情模型仍在加载，请继续拨动烟花';
+  };
+  update();
+  modelCountdownTimer = window.setInterval(update, 500);
+}
+
+function stopModelCountdown() {
+  window.clearInterval(modelCountdownTimer);
+  modelCountdownTimer = 0;
+}
+
 async function startCamera() {
   if (cameraStatus === 'requesting' || cameraStatus === 'ready') return;
 
   setCameraStatus('requesting', '正在请求权限');
   startButton.disabled = true;
   startButton.querySelector('span')!.textContent = '正在开启…';
-  // This call happens inside the user's click, allowing mobile browsers to
-  // unlock muted playback while the camera permission prompt is opening.
-  void prepareRainVideo();
-
   try {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error('This browser does not support camera capture.');
@@ -176,47 +231,52 @@ async function startCamera() {
     setCameraStatus('requesting', '正在准备互动');
     faceBadge.textContent = '模型加载中';
     startButton.querySelector('span')!.textContent = '摄像头已开启';
-    promptTitle.textContent = '正在准备互动效果';
-    promptHint.textContent = '摄像头已开启，请稍候';
+    loadingParticles.start();
+    loadingGestureHint.classList.add('is-visible');
+    startModelCountdown();
 
-    // Start the visual engine after the first camera frame and UI transition
-    // have already painted. This prevents shader compilation from swallowing
-    // the user's first click on slower phones and laptops.
-    window.setTimeout(() => void ensureEffectsReady(), 0);
+    const trackerInit = ensureFaceTrackerReady();
+    // A cold mobile load fetches roughly 15 MB of MediaPipe runtime + model.
+    // Treat a slow load as progress, not failure: the old hard timeout left a
+    // successfully loaded model orphaned after 15 seconds on iOS.
+    const slowModelTimer = window.setTimeout(() => {
+      if (modelReady) return;
+      setCameraStatus('requesting', '正在加载表情模型');
+      faceBadge.textContent = '首次加载较慢';
+    }, FACE_MODEL_SLOW_MS);
 
-    tracker = new FaceTracker(video, stage, handleSample);
-    const trackerInit = tracker.init();
-    // Keep a rejected late load from becoming an unhandled promise after the
-    // timeout race has already reported a usable camera fallback.
-    trackerInit.catch(() => undefined);
-    const trackerReady = Promise.race([
-      trackerInit,
-      new Promise<never>((_, reject) => {
-        window.setTimeout(() => reject(new Error('Face model load timed out')), FACE_MODEL_TIMEOUT_MS);
-      }),
-    ]);
-    void trackerReady.then(() => {
+    void trackerInit.then(() => {
+      window.clearTimeout(slowModelTimer);
+      stopModelCountdown();
       modelReady = true;
       tracker?.start();
       faceBadge.textContent = '寻找面部';
+      loadingParticles.setReady();
       maybeStartExperience();
+
+      // Face tracking is the critical interaction. Load the visual layer and
+      // rain only after it is ready; the lightweight CSS rain responds while
+      // the full video buffers in the background.
+      window.setTimeout(() => void ensureEffectsReady(), 0);
+      // Hand control is only needed after the first expression interactions,
+      // so keep its 7.5 MB model off the face-model critical path, but give it
+      // priority over the optional 21 MB high-detail rain video.
+      window.setTimeout(() => void startHandTracking(), 800);
+      window.setTimeout(() => void prepareRainVideo(), 8_000);
     }).catch((error) => {
+      window.clearTimeout(slowModelTimer);
+      stopModelCountdown();
+      loadingParticles.stop();
+      loadingGestureHint.classList.remove('is-visible');
       console.warn('Face model unavailable; camera remains active.', error);
       setCameraStatus('ready', '摄像头已开启');
       faceBadge.textContent = '模型不可用';
       promptHint.textContent = '表情模型加载失败，请刷新重试';
     });
-
-    if (localV3) {
-      handTracker?.destroy();
-      handTracker = new HandControlTracker(video);
-      void handTracker.init().catch(error => {
-        console.warn('Hand model unavailable; face interaction remains active.', error);
-        handTracker?.destroy();
-        promptHint.textContent = '手势加载失败，请刷新重试';
-      });
-    }
   } catch (error) {
+    stopModelCountdown();
+    loadingParticles.stop();
+    loadingGestureHint.classList.remove('is-visible');
     console.error(error);
     setCameraStatus('error', stream ? '模型加载失败' : '摄像头不可用');
     faceBadge.textContent = '不可用';
@@ -224,6 +284,16 @@ async function startCamera() {
     startButton.querySelector('span')!.textContent = '重试摄像头';
     permissionScreen.classList.remove('is-hidden');
   }
+}
+
+function startHandTracking() {
+  if (!localV3 || !stream || handTracker) return;
+  handTracker = new HandControlTracker(video);
+  void handTracker.init().catch(error => {
+    console.warn('Hand model unavailable; face interaction remains active.', error);
+    handTracker?.destroy();
+    handTracker = null;
+  });
 }
 
 function handleSample(sample: ExpressionSample) {
@@ -268,6 +338,10 @@ function setExpressionState(state: ExpressionState) {
   stateLabel.textContent = copy.label;
   promptTitle.textContent = copy.title;
   promptHint.textContent = copy.hint;
+  if (state !== 'NEUTRAL') {
+    loadingParticles.stop();
+    loadingGestureHint.classList.remove('is-visible');
+  }
   particles?.setState(state);
   setRainVideoActive(state === 'SMILE');
 }
@@ -299,6 +373,7 @@ function prepareRainVideo() {
       finished = true;
       window.clearTimeout(slowTimer);
       rainVideoReady = true;
+      document.body.classList.add('rain-video-ready');
       // Once unlocked, keep the muted loop running. Expressions only fade the
       // layer in and out, so threshold jitter can never freeze a visible frame.
       void rainEffectVideo.play().catch(() => undefined);
@@ -309,15 +384,15 @@ function prepareRainVideo() {
       if (finished) return;
       finished = true;
       window.clearTimeout(slowTimer);
-      setCameraStatus('error', '雨幕加载失败');
-      promptTitle.textContent = '互动效果加载失败';
-      promptHint.textContent = '请检查网络后刷新页面重试';
+      // Keep the lightweight generated rain active. A failed decorative video
+      // must not make the expression interaction appear broken.
+      console.warn('Rain video unavailable; using the lightweight rain layer.');
       resolve();
     };
     const slowTimer = window.setTimeout(() => {
       if (rainVideoReady) return;
-      setCameraStatus('requesting', '正在加载雨幕');
-      promptHint.textContent = '首次加载需要一点时间，请稍候';
+      // The generated rain is already interactive; avoid replacing useful
+      // gesture guidance with a loading message.
     }, 4_000);
 
     rainEffectVideo.addEventListener('canplay', finish, { once: true });
@@ -332,7 +407,7 @@ function prepareRainVideo() {
 }
 
 function maybeStartExperience() {
-  if (experienceReady || !modelReady || !rainVideoReady) return;
+  if (experienceReady || !modelReady) return;
   experienceReady = true;
   setCameraStatus('ready', '实时识别中');
   faceBadge.textContent = '寻找面部';
@@ -424,6 +499,8 @@ function renderLoop(now: number) {
 }
 
 function destroy() {
+  stopModelCountdown();
+  loadingParticles.destroy();
   handTracker?.destroy();
   tracker?.destroy();
   particles?.destroy();
@@ -466,4 +543,11 @@ window.addEventListener('keydown', (event) => {
 });
 
 setExpressionState('NEUTRAL');
+// Warm the face model after the permission screen has painted. This does not
+// access the camera; it only downloads and compiles the on-device recognizer.
+window.setTimeout(() => {
+  void ensureFaceTrackerReady().catch(error => {
+    console.warn('Face model preload deferred until camera start.', error);
+  });
+}, 600);
 requestAnimationFrame(renderLoop);

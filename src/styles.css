@@ -199,6 +199,23 @@ button, progress { font: inherit; }
 /* The rain video supplies the complete foreground artwork. Keep the live
    camera at normal exposure and remove the legacy dark atmospheric wash. */
 body[data-expression='smile'] .storm-overlay { opacity: 0; }
+/* An immediate, generated rain layer keeps the first smile responsive while
+   the higher-detail video downloads. It fades away as soon as video is ready. */
+body[data-expression='smile']:not(.rain-video-ready) .storm-overlay {
+  opacity: 0.72;
+  background:
+    repeating-linear-gradient(106deg, transparent 0 13px, rgba(126, 255, 244, 0.14) 14px 15px, transparent 16px 28px),
+    repeating-linear-gradient(108deg, transparent 0 22px, rgba(255, 171, 221, 0.16) 23px 25px, transparent 26px 43px),
+    linear-gradient(180deg, rgba(21, 147, 164, 0.05), rgba(0, 54, 74, 0.2));
+  background-size: 38px 96px, 54px 132px, 100% 100%;
+  animation: rain-fallback-fall 420ms linear infinite;
+}
+body[data-expression='smile']:not(.rain-video-ready) .storm-overlay::after {
+  opacity: 0.72;
+  background: repeating-linear-gradient(104deg, transparent 0 31px, rgba(255, 218, 112, 0.12) 32px 34px, transparent 35px 61px);
+  background-size: 64px 148px;
+  animation: rain-fallback-fall 620ms linear infinite reverse;
+}
 body[data-expression='laugh'] .storm-overlay { opacity: 0.42; }
 
 .effects-layer {
@@ -207,6 +224,28 @@ body[data-expression='laugh'] .storm-overlay { opacity: 0.42; }
   /* Each renderer owns its own transparent glow. Normal composition preserves
      the source palette instead of screening dim feedback into a white veil. */
   mix-blend-mode: normal;
+}
+
+.loading-particle-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  touch-action: none;
+  transition: opacity 260ms ease, filter 320ms ease;
+  filter: brightness(1.58) saturate(1.48) drop-shadow(0 0 6px rgba(255, 116, 170, 0.2));
+}
+
+.loading-particle-scene.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.loading-particle-scene.is-ready {
+  filter: brightness(1.52) saturate(1.38) drop-shadow(0 0 7px rgba(255, 178, 92, 0.22));
 }
 
 .pixi-canvas {
@@ -547,6 +586,24 @@ body[data-expression='laugh'] .prompt-icon { color: #ffd66f; background: rgba(25
   white-space: nowrap;
 }
 
+.loading-gesture-hint {
+  position: absolute;
+  z-index: 7;
+  left: 50%;
+  bottom: max(5.25rem, calc(env(safe-area-inset-bottom) + 4.75rem));
+  transform: translate(-50%, 0.35rem);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.loading-gesture-hint.is-visible { opacity: 1; transform: translate(-50%, 0); }
+
 .prompt-icon { display: grid; place-items: center; width: 2.3rem; height: 2.3rem; border-radius: 0.7rem; background: var(--aqua-soft); color: var(--aqua); font-size: 1.4rem; }
 .prompt-card strong, .prompt-card span { display: block; }
 .prompt-card strong { font-size: 0.88rem; }
@@ -626,6 +683,10 @@ body[data-expression='laugh'] .prompt-icon { color: #ffd66f; background: rgba(25
 @keyframes storm-breathe {
   from { opacity: 0.52; filter: brightness(0.9); }
   to { opacity: 1; filter: brightness(1.28); }
+}
+@keyframes rain-fallback-fall {
+  from { background-position: 0 -132px, 0 -148px, 0 0; }
+  to { background-position: -24px 132px, -34px 148px, 0 0; }
 }
 
 /* The phone has one fixed logical viewport; these rules never depend on the browser width. */

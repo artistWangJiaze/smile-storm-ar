@@ -4,8 +4,8 @@
 .figma-stage-background, .stage-caption, .figma-phone-frame, .figma-phone-camera, .brand-lockup { display: none; }
 .phone-frame { position: relative; inset: auto; margin: 0 auto; width: min(100%, 390px); height: min(100dvh, 844px); transform: none; }
 .phone-screen { position: relative; inset: auto; width: 100%; height: 100%; border-radius: 0; }
-.topbar { position: absolute; inset: 31px auto auto 12px; padding: 0; display: block; }
-.signal-chip { height: 24px; padding: 4px 12px; border: 0; border-radius: 8px; gap: 4px; background: rgba(117,255,246,.01); backdrop-filter: blur(18.05px); box-shadow: none; color: #f6f6f6; font-size: 12px; line-height: 15.6px; font-weight: 500; letter-spacing: .1608px; white-space: nowrap; }
+.topbar { position: absolute; inset: 31px auto auto 12px; padding: 0; display: flex; align-items: flex-start; line-height: 0; }
+.signal-chip { height: 24px; padding: 4px 12px; border: 0; border-radius: 8px; gap: 4px; background: rgba(117,255,246,.01); backdrop-filter: blur(18.05px); box-shadow: none; color: #f6f6f6; font-size: 12px; line-height: 15.6px; font-weight: 500; letter-spacing: .1608px; white-space: nowrap; vertical-align: top; }
 .signal-dot { width: 4px; height: 4px; flex: 0 0 4px; background: url('/ui/figma/dot.svg') center/contain no-repeat !important; box-shadow: none !important; }
 .debug-panel { position: absolute; inset: 31px 0 auto 0; width: auto; padding: 0; background: none; border: none; border-radius: 0; box-shadow: none; backdrop-filter: none; pointer-events: none; }
 .debug-panel > :not(.state-readout):not(.metric-list), .metric[data-metric='cheek'], .metric output, .state-readout > span { display: none !important; }
@@ -20,6 +20,7 @@ body .state-readout strong { font: 500 12px/15.6px -apple-system, BlinkMacSystem
 .metric progress::-webkit-progress-value { background: #d9d9d9; border-radius: 99px; }
 .metric progress::-moz-progress-bar { background: #d9d9d9; border-radius: 99px; }
 .prompt-card { position: absolute; left: 50%; right: auto; bottom: 29px; transform: translateX(-50%); width: 219px; height: 59px; padding: 11px 0 7px; display: block; text-align: center; border: 0; border-radius: 12px; background: rgba(40,40,40,.5); backdrop-filter: blur(18px); box-shadow: 0 8px 40px rgba(0,0,0,.12); }
+.loading-gesture-hint { bottom: 101px; font-size: 15px; line-height: 20px; font-weight: 600; }
 .prompt-icon { display: none; }
 .prompt-card strong { font-size: 15px; font-weight: 600; line-height: 19.5px; color: white; }
 .prompt-card span { margin-top: 3.5px; font-size: 14px; line-height: 18.2px; color: white; white-space: nowrap; }
@@ -50,7 +51,10 @@ body .state-readout strong { font: 500 12px/15.6px -apple-system, BlinkMacSystem
 #start-button { background: #2cb8c5; border-radius: 8px; }
 body.debug-ui .debug-panel { pointer-events: auto; }
 body.debug-ui .debug-panel > :not(.state-readout):not(.metric-list) { display: flex !important; position: relative; top: 120px; margin: 3px 12px; width: 230px; background: rgba(0,0,0,.7); }
-@media (max-width: 600px) { .phone-frame { width: 100%; height: 100dvh; } }
+@media (max-width: 600px) {
+  .phone-frame { width: 100%; height: 100dvh; }
+  .prompt-card { bottom: max(29px, calc(env(safe-area-inset-bottom) + 12px)); }
+}
 .easter-egg[hidden] { display: none; }
 .easter-egg { position: absolute; z-index: 6; pointer-events: none; left: 0; right: 0; bottom: 0; height: 278px; backdrop-filter: blur(2px); background: linear-gradient(to bottom, transparent 0%, #000 142.99%); }
 .easter-egg p { position: absolute; top: 120px; left: 0; width: 100%; margin: 0; text-align: center; white-space: nowrap; font-size: min(32px,8.2cqw); font-weight: 700; line-height: 1.2; color: #00fff6; }

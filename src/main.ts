@@ -72,7 +72,8 @@ let stream: MediaStream | null = null;
 let cameraStatus: CameraStatus = 'idle';
 let tracker: FaceTracker | null = null;
 let trackerInitPromise: Promise<void> | null = null;
-let modelWarmStartedAt = 0;
+let loadingStartedAt = 0;
+let loadingMinimumMs = 0;
 let modelCountdownTimer = 0;
 let handTracker: HandControlTracker | null = null;
 let currentSample: ExpressionSample | null = null;
@@ -152,13 +153,11 @@ function setCameraStatus(nextStatus: CameraStatus, label: string) {
 function ensureFaceTrackerReady() {
   if (!tracker) tracker = new FaceTracker(video, stage, handleSample);
   if (!trackerInitPromise) {
-    modelWarmStartedAt = performance.now();
     trackerInitPromise = tracker.init()
       .catch(error => {
         tracker?.destroy();
         tracker = null;
         trackerInitPromise = null;
-        modelWarmStartedAt = 0;
         throw error;
       });
   }
@@ -178,10 +177,10 @@ function estimatedModelSeconds() {
 
 function startModelCountdown() {
   stopModelCountdown();
-  const expectedSeconds = estimatedModelSeconds();
+  const expectedSeconds = Math.max(1, Math.ceil(loadingMinimumMs / 1000));
   const update = () => {
     if (modelReady) return;
-    const warmElapsed = modelWarmStartedAt ? (performance.now() - modelWarmStartedAt) / 1000 : 0;
+    const warmElapsed = loadingStartedAt ? (performance.now() - loadingStartedAt) / 1000 : 0;
     const remaining = Math.ceil(expectedSeconds - warmElapsed);
     promptTitle.textContent = '正在准备互动效果';
     promptHint.textContent = remaining > 0
@@ -233,6 +232,9 @@ async function startCamera() {
     startButton.querySelector('span')!.textContent = '摄像头已开启';
     loadingParticles.start();
     loadingGestureHint.classList.add('is-visible');
+    loadingStartedAt = performance.now();
+    loadingMinimumMs = estimatedModelSeconds() * 1000;
+    loadingGestureHint.textContent = '轻触或轻点拨动烟花';
     startModelCountdown();
 
     const trackerInit = ensureFaceTrackerReady();
@@ -245,8 +247,12 @@ async function startCamera() {
       faceBadge.textContent = '首次加载较慢';
     }, FACE_MODEL_SLOW_MS);
 
-    void trackerInit.then(() => {
+    void trackerInit.then(async () => {
       window.clearTimeout(slowModelTimer);
+      const remainingMinimumMs = Math.max(0, loadingMinimumMs - (performance.now() - loadingStartedAt));
+      if (remainingMinimumMs > 0) {
+        await new Promise<void>((resolve) => window.setTimeout(resolve, remainingMinimumMs));
+      }
       stopModelCountdown();
       modelReady = true;
       tracker?.start();
@@ -342,6 +348,10 @@ function setExpressionState(state: ExpressionState) {
     loadingParticles.stop();
     loadingGestureHint.classList.remove('is-visible');
   }
+  if (state === 'SMILE' && !onboardingStarted) {
+    onboardingStarted = true;
+    onboarding.start();
+  }
   particles?.setState(state);
   setRainVideoActive(state === 'SMILE');
 }
@@ -413,10 +423,7 @@ function maybeStartExperience() {
   faceBadge.textContent = '寻找面部';
   machine.reset();
   setExpressionState('NEUTRAL');
-  if (!onboardingStarted) {
-    onboardingStarted = true;
-    onboarding.start();
-  }
+  loadingGestureHint.textContent = '模型加载完成，快来体验！';
 }
 
 function updateHeadCollider(head: HeadCollider | null) {
